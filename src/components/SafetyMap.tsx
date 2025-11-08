@@ -529,8 +529,8 @@ export default function SafetyMap({
         path: path,
         geodesic: true,
         strokeColor: '#d45251', // 紅色
-        strokeOpacity: 0.8,
-        strokeWeight: 4,
+        strokeOpacity: 1.0, // 完全不透明
+        strokeWeight: 8, // 加粗路線
         map: mapInstance,
       })
 

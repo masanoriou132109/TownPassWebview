@@ -238,3 +238,5 @@ if (result.success && result.data) {
 3. **空数据**: 当查询范围内没有数据时，`clusters` 和 `noise_points` 数组为空
 4. **风险等级**: 风险等级由前端根据 `alpha` 值计算，后端可能不返回 `risk_level` 字段（需要确认）
 
+
+

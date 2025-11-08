@@ -15,6 +15,8 @@ function App() {
   const [currentPage, setCurrentPage] = useState<'home' | 'danger' | 'unsafe-report' | 'danger-map' | 'report-list' | 'settings'>('home')
   const [showDangerMap, setShowDangerMap] = useState(false)
   const homeMapRef = useRef<HomeMapHandle>(null)
+  const [canQuery, setCanQuery] = useState(false)
+  const [queryingDanger, setQueryingDanger] = useState(false)
   const { lastReply, sendMessage, isAvailable } = useFlutterBridge()
 
   // 处理从 Flutter 接收到的用户信息，并自动登录获取 JWT token
@@ -76,26 +78,47 @@ function App() {
     sendMessage('userinfo', null)
   }, [isAvailable, sendMessage])
   
-  // 查詢此處危險狀態相關代碼（已移除按鈕，但保留代碼以便將來使用）
-  // const [queryingDanger, setQueryingDanger] = useState(false)
-  // const [canQuery, setCanQuery] = useState(false)
-
   // 定期檢查是否可以查詢（因為 useImperativeHandle 可能不會觸發重新渲染）
-  // useEffect(() => {
-  //   if (!showDangerMap) {
-  //     setCanQuery(false)
-  //     return
-  //   }
-  //   
-  //   const checkInterval = setInterval(() => {
-  //     if (homeMapRef.current) {
-  //       const can = homeMapRef.current.canQuery()
-  //       setCanQuery(can)
-  //     }
-  //   }, 500)
+  useEffect(() => {
+    if (!showDangerMap) {
+      setCanQuery(false)
+      return
+    }
+    
+    const checkInterval = setInterval(() => {
+      if (homeMapRef.current) {
+        const can = homeMapRef.current.canQuery()
+        setCanQuery(can)
+      }
+    }, 500)
 
-  //   return () => clearInterval(checkInterval)
-  // }, [showDangerMap])
+    return () => clearInterval(checkInterval)
+  }, [showDangerMap])
+
+  // 當地圖顯示且可以查詢時，自動查詢危險區域
+  useEffect(() => {
+    if (!showDangerMap || !canQuery || queryingDanger) {
+      return
+    }
+
+    // 等待一小段時間確保地圖完全渲染
+    const timer = setTimeout(async () => {
+      if (homeMapRef.current && homeMapRef.current.canQuery()) {
+        console.log('[App] 自動查詢危險區域...')
+        setQueryingDanger(true)
+        try {
+          await homeMapRef.current.queryDangerZones()
+          console.log('[App] ✅ 危險區域查詢完成')
+        } catch (error) {
+          console.error('[App] ❌ 查詢危險區域失敗:', error)
+        } finally {
+          setQueryingDanger(false)
+        }
+      }
+    }, 1000) // 等待 1 秒確保地圖完全加載
+
+    return () => clearTimeout(timer)
+  }, [showDangerMap, canQuery])
 
   const handleNavigateToDanger = () => {
     setCurrentPage('danger')
@@ -110,7 +133,9 @@ function App() {
   }
 
   const handleShowDangerMap = () => {
+    console.log('[App] 顯示危險地圖')
     setShowDangerMap(true)
+    // 注意：實際查詢會在 useEffect 中自動觸發，當 canQuery 變為 true 時
   }
 
   const handleHideDangerMap = () => {
@@ -167,7 +192,17 @@ function App() {
           {showDangerMap && (
             <>
               <div className="app__map-container">
-                <HomeMap ref={homeMapRef} />
+                <HomeMap 
+                  ref={homeMapRef}
+                  onDangerZonesData={(data) => {
+                    console.log('[App] 收到危險區域數據:', data)
+                    // 數據已經由 HomeMap 自動繪製在地圖上
+                  }}
+                  onClusterClick={(cluster) => {
+                    console.log('[App] 點擊群集:', cluster)
+                    // 首頁不需要顯示詳細資訊，只記錄日誌
+                  }}
+                />
               </div>
 
               {/* 查詢此處危險狀態按鈕（已移除，代碼保留在下方註釋中） */}

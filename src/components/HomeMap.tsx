@@ -119,13 +119,21 @@ interface ClusterInfo {
   }
 }
 
+export interface NoisePointInfo {
+  id: number
+  lat: number
+  lng: number
+  alpha: number
+}
+
 interface HomeMapProps {
   onDangerZonesData?: (data: any) => void
   onClusterClick?: (cluster: ClusterInfo) => void
+  onNoisePointClick?: (noisePoint: NoisePointInfo) => void
 }
 
 const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
-  const { onDangerZonesData, onClusterClick } = props || {}
+  const { onDangerZonesData, onClusterClick, onNoisePointClick } = props || {}
   const mapRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -588,26 +596,15 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
         title: `噪音點 #${noisePoint.id} (Alpha: ${noisePoint.alpha.toFixed(2)})`,
       })
 
-      // 添加資訊視窗
-      const infoContent = `
-        <div style="padding: 0.75rem; min-width: 200px;">
-          <h3 style="margin: 0 0 0.5rem 0; font-size: 16px; font-weight: 600; color: #9ca3af;">噪音點 #${noisePoint.id}</h3>
-          <p style="margin: 4px 0; font-size: 14px; color: #475259;">
-            <strong>Alpha 值:</strong> ${noisePoint.alpha.toFixed(2)}
-          </p>
-          <p style="margin: 4px 0; font-size: 12px; color: #475259;">
-            位置: (${noisePoint.lat.toFixed(6)}, ${noisePoint.lng.toFixed(6)})
-          </p>
-          <p style="margin: 8px 0 0 0; font-size: 12px; color: #9ca3af;">
-            此點未形成群集，可能是偶發事件
-          </p>
-        </div>
-      `
-
+      // 添加點擊事件，將資訊傳遞給父組件顯示在下方資訊欄
       marker.addListener('click', () => {
-        if (infoWindowRef.current) {
-          infoWindowRef.current.setContent(infoContent)
-          infoWindowRef.current.open(mapInstance, marker)
+        if (onNoisePointClick) {
+          onNoisePointClick({
+            id: noisePoint.id,
+            lat: noisePoint.lat,
+            lng: noisePoint.lng,
+            alpha: noisePoint.alpha,
+          })
         }
       })
 
