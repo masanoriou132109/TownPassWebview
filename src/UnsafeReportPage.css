@@ -28,8 +28,8 @@
 }
 
 .unsafe-report-page__nav-btn svg {
-  width: 24px;
-  height: 24px;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .unsafe-report-page__headline {
@@ -40,13 +40,16 @@
 }
 
 .unsafe-report-page__header-spacer {
-  width: 40px; /* 與返回按鈕寬度一致，保持標題置中 */
+  width: 2.5rem;
+  /* 與返回按鈕寬度一致，保持標題置中 */
 }
 
 .unsafe-report-page__content {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
+  padding-bottom: calc(3.75rem + 2rem + 1rem);
+  /* 為固定按鈕留出空間（頁尾高度 + 2rem間距 + 原本padding） */
 }
 
 .unsafe-report-page__form {
@@ -130,9 +133,18 @@
 }
 
 .unsafe-report-page__actions {
+  position: fixed;
+  bottom: calc(3.75rem + 0.5rem);
+  /* 頁尾上方 2rem */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 26.25rem;
   padding: 1rem;
-  background: var(--tp-surface);
-  border-top: 1px solid var(--tp-line);
+  background: var(--tp-layer);
+  /* 與頁面背景一致 */
+  box-sizing: border-box;
+  z-index: 10;
 }
 
 .unsafe-report-page__submit-btn {
@@ -150,8 +162,8 @@
 }
 
 .unsafe-report-page__submit-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(12, 25, 33, 0.1);
+  transform: translateY(-0.0625rem);
+  box-shadow: 0 0.125rem 0.5rem rgba(12, 25, 33, 0.1);
   background: var(--tp-primary-strong);
 }
 
@@ -161,7 +173,7 @@
 
 .unsafe-report-page__submit-btn:focus-visible {
   outline: 3px solid rgba(90, 180, 197, 0.3);
-  outline-offset: 4px;
+  outline-offset: 0.25rem;
 }
 
 .unsafe-report-page__submit-btn:disabled {
@@ -183,4 +195,3 @@
   color: var(--tp-text-muted);
   background: var(--tp-layer-strong);
 }
-

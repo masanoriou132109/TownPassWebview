@@ -7,7 +7,6 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyD
 declare global {
   interface Window {
     __homeMapScriptLoaded?: boolean
-    google?: typeof google
   }
 }
 
@@ -115,9 +114,7 @@ export default function HomeMap() {
     if (mapRef.current) {
       const container = mapRef.current.closest('.app__map-container') as HTMLElement
       if (container) {
-        // 確保容器尺寸為 378x400（不包括 padding）
-        const computedStyle = window.getComputedStyle(container)
-        const padding = parseFloat(computedStyle.padding) || 16
+        // 確保容器尺寸為 378x400
         container.style.width = '378px'
         container.style.height = '400px'
         container.style.margin = '0 auto'

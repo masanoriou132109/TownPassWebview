@@ -28,8 +28,8 @@
 }
 
 .danger-page__nav-btn svg {
-  width: 24px;
-  height: 24px;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .danger-page__headline {
@@ -40,7 +40,7 @@
 }
 
 .danger-page__header-spacer {
-  width: 40px; /* 與返回按鈕寬度一致，保持標題置中 */
+  width: 2.5rem; /* 與返回按鈕寬度一致，保持標題置中 */
 }
 
 .danger-page__content {
@@ -87,10 +87,10 @@
   z-index: 1000;
   background: rgba(255, 255, 255, 0.9);
   padding: 1rem 1.5rem;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   font-size: 0.9rem;
   color: var(--tp-text);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
 }
 
 .safety-map__loading-overlay {
@@ -100,10 +100,10 @@
   z-index: 1000;
   background: rgba(255, 255, 255, 0.9);
   padding: 0.75rem 1rem;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   font-size: 0.9rem;
   color: var(--tp-text);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
 }
 
 .safety-map__error {
@@ -115,9 +115,9 @@
   background: var(--tp-critical);
   color: white;
   padding: 0.75rem 1rem;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   font-size: 0.85rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.2);
 }
 
 .danger-page__actions {
@@ -143,8 +143,8 @@
 }
 
 .danger-page__action-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(12, 25, 33, 0.1);
+  transform: translateY(-0.0625rem);
+  box-shadow: 0 0.125rem 0.5rem rgba(12, 25, 33, 0.1);
   background: var(--tp-layer);
 }
 
@@ -165,7 +165,7 @@
 
 .danger-page__action-btn:focus-visible {
   outline: 3px solid rgba(90, 180, 197, 0.3);
-  outline-offset: 4px;
+  outline-offset: 0.25rem;
 }
 
 .danger-page__footer {
@@ -180,10 +180,10 @@
 .danger-page__route-status {
   margin: 0 1rem 1rem 1rem;
   padding: 0.875rem 1rem;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   font-size: 0.9rem;
   line-height: 1.5;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
 }
 
 .danger-page__route-status--success {

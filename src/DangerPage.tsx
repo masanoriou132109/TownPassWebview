@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import './DangerPage.css'
-import SafetyMap from './components/SafetyMap'
-import routeData from './data/route-data.json'
+// import SafetyMap from './components/SafetyMap' // 暫時隱藏地圖
+import { useFlutterBridge } from './hooks/useFlutterBridge'
 
 const API_BASE_URL = 'https://ws10.csie.ntu.edu.tw:54443'
 
@@ -12,6 +12,12 @@ interface RoutePoint {
   lng: number
   time: string
   searchRadius?: number
+}
+
+interface LocationHistoryEntry {
+  latitude: number
+  longitude: number
+  capturedAt?: string
 }
 
 interface SafePlace {
@@ -122,51 +128,130 @@ interface DangerPageProps {
 }
 
 function DangerPage({ onBack }: DangerPageProps) {
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const { sendMessage, lastReply, isAvailable } = useFlutterBridge()
+  // const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null) // 暫時未使用
   const [loading, setLoading] = useState(false)
-  const [routePoints, setRoutePoints] = useState<RoutePoint[]>([])
-  const [safePlaces, setSafePlaces] = useState<SafePlace[]>([])
-  const [cctvPlaces, setCctvPlaces] = useState<CctvPlace[]>([])
-  const [routePolyline, setRoutePolyline] = useState<string | null>(null)
-  const [processedPoints, setProcessedPoints] = useState<ProcessedPoint[]>([])
-  const [safePlace, setSafePlace] = useState<{
-    id: number
-    name: string
-    lat: number
-    lng: number
-    type: string
-    foundAtPointIndex: number
-  } | null>(null)
+  // 用於顯示的數據
+  const [convertedRoutePoints, setConvertedRoutePoints] = useState<RoutePoint[]>([])
+  // 內部使用的狀態（保留以備將來使用，但不在頁面上顯示）
+  const [, setBackendSearchResponse] = useState<RouteSearchResponse | null>(null)
+  const [, setBackendPlanResponse] = useState<RoutePlanResponse | null>(null)
+  const [, setRoutePoints] = useState<RoutePoint[]>([])
+  const [, setSafePlaces] = useState<SafePlace[]>([])
+  const [, setCctvPlaces] = useState<CctvPlace[]>([])
+  const [, setProcessedPoints] = useState<ProcessedPoint[]>([])
+  // safePlace 目前未使用，但保留以備將來使用
+  // const [safePlace, setSafePlace] = useState<{
+  //   id: number
+  //   name: string
+  //   lat: number
+  //   lng: number
+  //   type: string
+  //   foundAtPointIndex: number
+  // } | null>(null)
 
-  useEffect(() => {
-    // 獲取用戶位置
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-        },
-        () => {
-          // 如果無法獲取位置，使用預設位置（台北市政府）
-          setUserLocation({
-            lat: 25.0375,
-            lng: 121.5645,
-          })
-        }
-      )
-    } else {
-      // 瀏覽器不支持定位，使用預設位置
-      setUserLocation({
-        lat: 25.0375,
-        lng: 121.5645,
-      })
-    }
-  }, [])
+  // 暫時註釋掉用戶位置獲取（地圖已隱藏）
+  // useEffect(() => {
+  //   // 獲取用戶位置
+  //   if (navigator.geolocation) {
+  //     navigator.geolocation.getCurrentPosition(
+  //       (position) => {
+  //         setUserLocation({
+  //           lat: position.coords.latitude,
+  //           lng: position.coords.longitude,
+  //         })
+  //       },
+  //       () => {
+  //         // 如果無法獲取位置，使用預設位置（台北市政府）
+  //         setUserLocation({
+  //           lat: 25.0375,
+  //           lng: 121.5645,
+  //         })
+  //       }
+  //     )
+  //   } else {
+  //     // 瀏覽器不支持定位，使用預設位置
+  //     setUserLocation({
+  //       lat: 25.0375,
+  //       lng: 121.5645,
+  //     })
+  //   }
+  // }, [])
+
+  /**
+   * 將 Flutter 傳來的定位歷史轉換成後端要求的格式
+   */
+  const convertLocationHistoryToRoutePoints = (
+    locationHistory: LocationHistoryEntry[]
+  ): RoutePoint[] => {
+    // 按時間排序（從舊到新）
+    const sorted = [...locationHistory].sort((a, b) => {
+      const timeA = a.capturedAt ? new Date(a.capturedAt).getTime() : 0
+      const timeB = b.capturedAt ? new Date(b.capturedAt).getTime() : 0
+      return timeA - timeB
+    })
+
+    // 只取最後十筆
+    const lastTen = sorted.slice(-10)
+
+    // 轉換成 RoutePoint 格式（時間格式直接使用 capturedAt，不需要轉換）
+    return lastTen.map((entry, index) => ({
+      id: index,
+      lat: entry.latitude,
+      lng: entry.longitude,
+      time: entry.capturedAt || new Date().toISOString().replace('Z', '').replace(/\.\d{3}$/, '000000'),
+    }))
+  }
 
   const handleGoToSafePlace = async () => {
+    console.log('='.repeat(60))
+    console.log('[DangerPage] 🚀 開始執行「前往安全處」')
+    console.log('='.repeat(60))
+    console.log('Flutter Bridge 可用:', isAvailable)
+    console.log('當前 lastReply:', lastReply)
+
     setLoading(true)
+    try {
+      // 先從 Flutter 獲取定位歷史
+      if (isAvailable) {
+        console.log('[DangerPage] 📤 向 Flutter 發送 location_history 請求...')
+        console.log('請求參數: { minutes: 30, limit: 120 }')
+        sendMessage('location_history', { minutes: 30, limit: 120 })
+        console.log('[DangerPage] ⏳ 等待 Flutter 回傳數據...')
+        // 等待 Flutter 回傳數據（通過 useEffect 監聽 lastReply）
+        return // 先返回，等待數據回傳後再處理
+      } else {
+        console.warn('='.repeat(60))
+        console.warn('[DangerPage] ⚠️ Flutter bridge 不可用')
+        console.warn('='.repeat(60))
+        console.warn('將使用空數組調用後端 API')
+        // 如果 Flutter bridge 不可用，使用預設數據或直接調用 API
+        await callBackendAPI([])
+      }
+    } catch (error) {
+      console.error('='.repeat(60))
+      console.error('[DangerPage] ❌ 處理失敗')
+      console.error('='.repeat(60))
+      console.error('錯誤:', error)
+      setLoading(false)
+    }
+  }
+
+  /**
+   * 調用後端 API
+   */
+  const callBackendAPI = useCallback(async (points: RoutePoint[]) => {
+    // 如果沒有點位數據，使用空數組
+    const requestData = points.length > 0 ? { points } : { points: [] }
+
+    console.log('='.repeat(60))
+    console.log('[DangerPage] 📤 發送到後端的請求數據')
+    console.log('='.repeat(60))
+    console.log('請求 URL (route/search):', `${API_BASE_URL}/api/route/search`)
+    console.log('請求 URL (route/plan):', `${API_BASE_URL}/api/route/plan`)
+    console.log('請求 Body:', JSON.stringify(requestData, null, 2))
+    console.log('請求數據中的 points 數量:', requestData.points.length)
+
     try {
       // 同時調用兩個 API
       const [searchResponse, planResponse] = await Promise.all([
@@ -176,7 +261,7 @@ function DangerPage({ onBack }: DangerPageProps) {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(routeData),
+          body: JSON.stringify(requestData),
         }),
         // 調用 route/plan API
         fetch(`${API_BASE_URL}/api/route/plan`, {
@@ -184,52 +269,136 @@ function DangerPage({ onBack }: DangerPageProps) {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(routeData),
+          body: JSON.stringify(requestData),
         }),
       ])
+
+      console.log('='.repeat(60))
+      console.log('[DangerPage] 📥 後端 API 回應狀態')
+      console.log('='.repeat(60))
+      console.log('route/search 狀態:', searchResponse.status, searchResponse.statusText)
+      console.log('route/plan 狀態:', planResponse.status, planResponse.statusText)
 
       // 處理 route/search 回應
       if (searchResponse.ok) {
         const searchData: RouteSearchResponse = await searchResponse.json()
+        console.log('='.repeat(60))
+        console.log('[DangerPage] ✅ Route Search 回應數據')
+        console.log('='.repeat(60))
+        console.log('完整回應:', JSON.stringify(searchData, null, 2))
+        // 保存後端回傳的數據用於顯示
+        setBackendSearchResponse(searchData)
         if (searchData.success && searchData.data) {
           setRoutePoints(searchData.data.points || [])
           setSafePlaces(searchData.data.safePlaces || [])
           setCctvPlaces(searchData.data.cctv || [])
-          console.log('Route Search 成功:', searchData.data)
+          console.log('提取的數據:')
+          console.log('  - points 數量:', searchData.data.points?.length || 0)
+          console.log('  - safePlaces 數量:', searchData.data.safePlaces?.length || 0)
+          console.log('  - cctv 數量:', searchData.data.cctv?.length || 0)
+          console.log('  - summary:', searchData.data.summary)
         }
       } else {
-        console.error('Route Search 失敗:', searchResponse.statusText)
+        const errorText = await searchResponse.text()
+        console.error('='.repeat(60))
+        console.error('[DangerPage] ❌ Route Search 失敗')
+        console.error('='.repeat(60))
+        console.error('狀態碼:', searchResponse.status)
+        console.error('狀態文字:', searchResponse.statusText)
+        console.error('錯誤內容:', errorText)
       }
 
       // 處理 route/plan 回應
       if (planResponse.ok) {
         const planData: RoutePlanResponse = await planResponse.json()
+        console.log('='.repeat(60))
+        console.log('[DangerPage] ✅ Route Plan 回應數據')
+        console.log('='.repeat(60))
+        console.log('完整回應:', JSON.stringify(planData, null, 2))
+        // 保存後端回傳的數據用於顯示
+        setBackendPlanResponse(planData)
         if (planData.success && planData.data) {
-          // 提取路線折線
+          // 提取路線折線（暫時未使用，但保留數據）
           if (planData.data.route?.routes?.[0]?.overview_polyline?.points) {
-            setRoutePolyline(planData.data.route.routes[0].overview_polyline.points)
+            // setRoutePolyline(planData.data.route.routes[0].overview_polyline.points)
+            console.log('提取的路線 polyline 長度:', planData.data.route.routes[0].overview_polyline.points.length)
           }
           // 提取處理過的點位
           if (planData.data.processedPoints) {
             setProcessedPoints(planData.data.processedPoints)
+            console.log('提取的 processedPoints 數量:', planData.data.processedPoints.length)
           }
-          // 提取安全點位
-          if (planData.data.safePlace) {
-            setSafePlace(planData.data.safePlace)
-          }
-          console.log('Route Plan 成功:', planData.data)
+          // 提取安全點位（目前未使用，但保留以備將來使用）
+          // if (planData.data.safePlace) {
+          //   setSafePlace(planData.data.safePlace)
+          // }
+          console.log('提取的數據:')
+          console.log('  - route 狀態:', planData.data.route?.status)
+          console.log('  - safePlace:', planData.data.safePlace)
+          console.log('  - processedPoints 數量:', planData.data.processedPoints?.length || 0)
         }
       } else {
-        const planError = await planResponse.json()
-        console.warn('Route Plan 失敗:', planError)
+        const planError = await planResponse.json().catch(() => ({ error: '無法解析 JSON' }))
+        console.warn('='.repeat(60))
+        console.warn('[DangerPage] ⚠️ Route Plan 失敗')
+        console.warn('='.repeat(60))
+        console.warn('狀態碼:', planResponse.status)
+        console.warn('錯誤內容:', JSON.stringify(planError, null, 2))
         // route/plan 可能因為 API key 問題失敗，但不影響顯示其他數據
       }
     } catch (error) {
-      console.error('API 調用失敗:', error)
+      console.error('='.repeat(60))
+      console.error('[DangerPage] ❌ API 調用異常')
+      console.error('='.repeat(60))
+      console.error('錯誤:', error)
+      if (error instanceof Error) {
+        console.error('錯誤訊息:', error.message)
+        console.error('錯誤堆疊:', error.stack)
+      }
     } finally {
       setLoading(false)
+      console.log('='.repeat(60))
+      console.log('[DangerPage] ✅ 處理完成')
+      console.log('='.repeat(60))
     }
-  }
+  }, [])
+
+  /**
+   * 監聽 Flutter 回傳的定位歷史數據
+   */
+  useEffect(() => {
+    if (lastReply?.name === 'location_history' && Array.isArray(lastReply.data)) {
+      console.log('='.repeat(60))
+      console.log('[DangerPage] 📥 收到 Flutter 定位歷史數據')
+      console.log('='.repeat(60))
+      console.log('原始數據 (lastReply):', JSON.stringify(lastReply, null, 2))
+      console.log('數據類型:', typeof lastReply.data, Array.isArray(lastReply.data))
+      console.log('數據長度:', Array.isArray(lastReply.data) ? lastReply.data.length : 'N/A')
+
+      const locationHistory = lastReply.data as LocationHistoryEntry[]
+      console.log('解析後的 locationHistory:', locationHistory)
+      console.log('locationHistory 範例（前3筆）:', locationHistory.slice(0, 3))
+
+      // 轉換成後端要求的格式
+      const routePoints = convertLocationHistoryToRoutePoints(locationHistory)
+
+      // 保存轉換後的數據用於顯示
+      setConvertedRoutePoints(routePoints)
+
+      console.log('='.repeat(60))
+      console.log('[DangerPage] 🔄 轉換後的 routePoints')
+      console.log('='.repeat(60))
+      console.log('轉換後的 routePoints:', JSON.stringify(routePoints, null, 2))
+      console.log('routePoints 數量:', routePoints.length)
+      console.log('routePoints 範例（前3筆）:', routePoints.slice(0, 3))
+
+      // 調用後端 API
+      callBackendAPI(routePoints).catch((error) => {
+        console.error('[DangerPage] ❌ 調用後端 API 失敗:', error)
+        setLoading(false)
+      })
+    }
+  }, [lastReply, callBackendAPI])
 
   return (
     <div className="danger-page">
@@ -249,7 +418,8 @@ function DangerPage({ onBack }: DangerPageProps) {
       </header>
 
       <main className="danger-page__content" aria-label="我有危險操作">
-        <div className="danger-page__map-container">
+        {/* 暫時隱藏地圖以便測試 */}
+        {/* <div className="danger-page__map-container">
           <SafetyMap
             userLat={userLocation?.lat}
             userLng={userLocation?.lng}
@@ -259,6 +429,38 @@ function DangerPage({ onBack }: DangerPageProps) {
             routePolyline={routePolyline}
             processedPoints={processedPoints}
           />
+        </div> */}
+        <div className="danger-page__map-container" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
+          {/* Flutter 原始數據 */}
+          <div style={{ background: 'var(--tp-surface)', padding: '1rem', borderRadius: '0.5rem' }}>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', fontWeight: 600 }}>Flutter 原始數據</h3>
+            <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: 'var(--tp-text-muted)' }}>
+              Flutter Bridge 狀態: {isAvailable ? '✅ 可用' : '❌ 不可用'}
+            </p>
+            {lastReply ? (
+              <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--tp-layer)', borderRadius: '0.5rem', fontFamily: 'monospace', fontSize: '0.75rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
+                {JSON.stringify(lastReply, null, 2)}
+              </div>
+            ) : (
+              <p style={{ margin: '1rem 0 0 0', fontSize: '0.85rem', color: 'var(--tp-text-muted)' }}>
+                尚未收到 Flutter 數據，請點擊「前往安全處」按鈕
+              </p>
+            )}
+          </div>
+
+          {/* 轉換後的格式 */}
+          <div style={{ background: 'var(--tp-surface)', padding: '1rem', borderRadius: '0.5rem' }}>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', fontWeight: 600 }}>轉換後的格式 (RoutePoint[])</h3>
+            {convertedRoutePoints.length > 0 ? (
+              <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--tp-layer)', borderRadius: '0.5rem', fontFamily: 'monospace', fontSize: '0.75rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
+                {JSON.stringify(convertedRoutePoints, null, 2)}
+              </div>
+            ) : (
+              <p style={{ margin: '1rem 0 0 0', fontSize: '0.85rem', color: 'var(--tp-text-muted)' }}>
+                尚未轉換數據，請點擊「前往安全處」按鈕
+              </p>
+            )}
+          </div>
         </div>
       </main>
 

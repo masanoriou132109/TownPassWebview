@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE_DIST="${ROOT_DIR}/dist"
-TARGET_ROOT="/var/www/tp_hobby"
+SOURCE_DIST="${ROOT_DIR}/webview/dist"
+TARGET_ROOT="/var/www/tp"
 TARGET_DIST="${TARGET_ROOT}/dist"
-BACKUP_ROOT="/var/www/tp_hobby_backup"
+BACKUP_ROOT="/var/www/tp_backup"
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
 BACKUP_DIST="${BACKUP_ROOT}/dist_${TIMESTAMP}"
 

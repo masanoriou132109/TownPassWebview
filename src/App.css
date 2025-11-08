@@ -1,7 +1,7 @@
 .app-container {
   position: relative;
   width: 100%;
-  max-width: 420px;
+  max-width: 26.25rem;
   margin: 0 auto;
   min-height: 100vh;
   overflow: hidden;
@@ -50,8 +50,8 @@
 }
 
 .app__nav-btn svg {
-  width: 24px;
-  height: 24px;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .app__headline {
@@ -68,7 +68,7 @@
   overflow-y: auto;
   min-height: 0;
   position: relative;
-  padding-bottom: 140px;
+  padding-bottom: 8.75rem;
   /* 為固定按鈕留出空間 */
 }
 
@@ -105,8 +105,8 @@
 }
 
 .app__map-container {
-  width: 378px;
-  height: 400px;
+  width: 23.625rem;
+  height: 25rem;
   margin: 0 auto;
   overflow: hidden;
   position: relative;
@@ -140,8 +140,8 @@
 }
 
 .app__hide-map-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(12, 25, 33, 0.1);
+  transform: translateY(-0.0625rem);
+  box-shadow: 0 0.125rem 0.5rem rgba(12, 25, 33, 0.1);
   background: var(--tp-layer);
 }
 
@@ -151,7 +151,7 @@
 
 .app__hide-map-btn:focus-visible {
   outline: 3px solid rgba(90, 180, 197, 0.3);
-  outline-offset: 4px;
+  outline-offset: 0.25rem;
 }
 
 /* 首頁地圖樣式 */
@@ -159,10 +159,10 @@
   width: 100%;
   height: 100%;
   position: relative;
-  border-radius: 16px;
+  border-radius: 1rem;
   overflow: hidden;
   border: 1px solid var(--tp-line);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
 }
 
 .home-map__container {
@@ -178,10 +178,10 @@
   z-index: 1000;
   background: rgba(255, 255, 255, 0.9);
   padding: 1rem 1.5rem;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   font-size: 0.9rem;
   color: var(--tp-text);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
 }
 
 .home-map__error {
@@ -193,9 +193,9 @@
   background: var(--tp-critical);
   color: white;
   padding: 0.75rem 1rem;
-  border-radius: 8px;
+  border-radius: 0.5rem;
   font-size: 0.85rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.2);
 }
 
 .app__show-map-btn-container {
@@ -222,8 +222,8 @@
 }
 
 .app__show-map-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(12, 25, 33, 0.1);
+  transform: translateY(-0.0625rem);
+  box-shadow: 0 0.125rem 0.5rem rgba(12, 25, 33, 0.1);
   background: var(--tp-primary-strong);
 }
 
@@ -233,7 +233,7 @@
 
 .app__show-map-btn:focus-visible {
   outline: 3px solid rgba(90, 180, 197, 0.3);
-  outline-offset: 4px;
+  outline-offset: 0.25rem;
 }
 
 .app__buttons {
@@ -242,12 +242,12 @@
   padding: 1rem;
   flex-shrink: 0;
   position: fixed;
-  bottom: 60px;
+  bottom: 3.75rem;
   /* 在頁尾上方 */
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
-  max-width: 420px;
+  max-width: 26.25rem;
   z-index: 10;
   box-sizing: border-box;
   background: var(--tp-layer);
@@ -273,8 +273,8 @@
 }
 
 .app__action-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(12, 25, 33, 0.1);
+  transform: translateY(-0.125rem);
+  box-shadow: 0 0.25rem 0.75rem rgba(12, 25, 33, 0.1);
   background: var(--tp-layer);
 }
 
@@ -284,12 +284,12 @@
 
 .app__action-btn:focus-visible {
   outline: 3px solid rgba(90, 180, 197, 0.3);
-  outline-offset: 4px;
+  outline-offset: 0.25rem;
 }
 
 .app__action-icon {
-  width: 48px;
-  height: 48px;
+  width: 3rem;
+  height: 3rem;
   flex-shrink: 0;
 }
 
