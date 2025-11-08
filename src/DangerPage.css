@@ -1,0 +1,117 @@
+.danger-page {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--tp-layer);
+  color: var(--tp-text);
+  display: flex;
+  flex-direction: column;
+}
+
+.danger-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--tp-surface);
+  border-bottom: 1px solid var(--tp-line);
+}
+
+.danger-page__nav-btn {
+  border: none;
+  background: transparent;
+  padding: 0.4rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.danger-page__nav-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.danger-page__headline {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--tp-deep);
+  margin: 0;
+}
+
+.danger-page__header-spacer {
+  width: 40px; /* 與返回按鈕寬度一致，保持標題置中 */
+}
+
+.danger-page__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.danger-page__map-container {
+  flex: 1;
+  width: 100%;
+  background: var(--tp-surface);
+  border: 1px solid var(--tp-line);
+  position: relative;
+  min-height: 0; /* 允許 flex 子元素縮小 */
+}
+
+.danger-page__actions {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--tp-surface);
+  border-top: 1px solid var(--tp-line);
+}
+
+.danger-page__action-btn {
+  flex: 1;
+  padding: 0.875rem 1.25rem;
+  border: 1px solid rgba(12, 25, 33, 0.2);
+  border-radius: 12px;
+  background: var(--tp-surface);
+  color: var(--tp-deep);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.danger-page__action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(12, 25, 33, 0.1);
+  background: var(--tp-layer);
+}
+
+.danger-page__action-btn:active {
+  transform: translateY(0);
+}
+
+.danger-page__action-btn--primary {
+  background: var(--tp-primary);
+  color: white;
+  border-color: var(--tp-primary);
+}
+
+.danger-page__action-btn--primary:hover {
+  background: var(--tp-primary-strong);
+  border-color: var(--tp-primary-strong);
+}
+
+.danger-page__action-btn:focus-visible {
+  outline: 3px solid rgba(90, 180, 197, 0.3);
+  outline-offset: 4px;
+}
+
+.danger-page__footer {
+  border-top: 1px solid var(--tp-line);
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--tp-text-muted);
+  background: var(--tp-layer-strong);
+}
+
