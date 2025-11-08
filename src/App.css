@@ -1,0 +1,121 @@
+.app {
+  min-height: 100vh;
+  max-width: 420px;
+  margin: 0 auto;
+  background: var(--tp-layer);
+  color: var(--tp-text);
+  display: flex;
+  flex-direction: column;
+}
+
+.app__header {
+  padding: 2.5rem 1.6rem 1.8rem;
+  display: grid;
+  gap: 0.55rem;
+  background: var(--tp-surface);
+  border-bottom: 1px solid var(--tp-line);
+  border-radius: 0 0 22px 22px;
+  box-shadow: 0 12px 24px rgba(3, 14, 23, 0.05);
+}
+
+.app__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--tp-primary-strong);
+}
+
+.app__headline {
+  margin: 0;
+  font-size: 1.6rem;
+  color: var(--tp-deep);
+  font-weight: 700;
+}
+
+.app__subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tp-text-muted);
+  line-height: 1.6;
+}
+
+.app__content {
+  padding: 1.8rem 1.25rem 2.8rem;
+  flex: 1;
+  display: grid;
+  gap: 1.8rem;
+}
+
+.module {
+  background: var(--tp-surface);
+  border-radius: 20px;
+  padding: 1.6rem 1.4rem;
+  border: 1px solid rgba(12, 25, 33, 0.06);
+  box-shadow: 0 14px 30px rgba(3, 14, 23, 0.06);
+  display: grid;
+  gap: 0.8rem;
+}
+
+.module__action {
+  border: none;
+  border-radius: 16px;
+  padding: 1.1rem 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.module__action--primary {
+  background: linear-gradient(135deg, #5ab4c5, #c4eef5);
+  color: var(--tp-deep);
+  box-shadow: 0 16px 24px rgba(90, 180, 197, 0.26);
+}
+
+.module__action--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 30px rgba(90, 180, 197, 0.33);
+}
+
+.module__action--secondary {
+  background: linear-gradient(135deg, #ffb482, #ffd3b5);
+  color: var(--tp-deep);
+  box-shadow: 0 16px 24px rgba(255, 147, 67, 0.22);
+}
+
+.module__action--secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 28px rgba(255, 147, 67, 0.28);
+}
+
+.module__action:focus-visible {
+  outline: 3px solid rgba(90, 180, 197, 0.3);
+  outline-offset: 4px;
+}
+
+.module__hint {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tp-text-muted);
+}
+
+.divider {
+  height: 1px;
+  background: rgba(12, 25, 33, 0.08);
+  margin: 0 1rem;
+}
+
+.app__footer {
+  border-top: 1px solid var(--tp-line);
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--tp-text-muted);
+  background: var(--tp-layer-strong);
+}

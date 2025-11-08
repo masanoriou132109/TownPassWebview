@@ -1,0 +1,54 @@
+:root {
+  font-family: 'Noto Sans TC', 'PingFang TC', 'Inter', 'Segoe UI', system-ui,
+    -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* TownPass palette */
+  --tp-primary: #5ab4c5;
+  --tp-primary-strong: #318ea0;
+  --tp-deep: #0b0d0e;
+  --tp-warm: #ff9343;
+  --tp-critical: #d45251;
+  --tp-surface: #ffffff;
+  --tp-layer: #f7f9fa;
+  --tp-layer-strong: #f1f3f4;
+  --tp-line: #cad1d5;
+  --tp-text: #1e1e1e;
+  --tp-text-muted: #4d5459;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--tp-layer);
+  color: var(--tp-text);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--tp-primary);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button {
+  font-family: inherit;
+}
