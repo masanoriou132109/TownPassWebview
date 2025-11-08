@@ -106,7 +106,7 @@
 
 .app__map-container {
   width: 23.625rem;
-  height: 25rem;
+  height: 23.625rem;
   margin: 0 auto;
   overflow: hidden;
   position: relative;
@@ -120,8 +120,54 @@
   height: 100%;
 }
 
+.app__query-danger-btn-container {
+  padding: 0 1rem 0.75rem 1rem;
+  flex-shrink: 0;
+}
+
+.app__query-danger-btn {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: var(--tp-primary);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.app__query-danger-btn:hover:not(:disabled) {
+  transform: translateY(-0.0625rem);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.2);
+  background: var(--tp-primary-strong);
+}
+
+.app__query-danger-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.app__query-danger-btn:focus-visible {
+  outline: 3px solid rgba(90, 180, 197, 0.3);
+  outline-offset: 0.25rem;
+}
+
+.app__query-danger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.app__query-danger-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+  background: var(--tp-primary);
+}
+
 .app__hide-map-btn-container {
-  padding: 1rem;
+  padding: 0 1rem 1rem 1rem;
   flex-shrink: 0;
 }
 

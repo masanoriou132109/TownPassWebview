@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import './App.css'
 import DangerPage from './DangerPage'
 import UnsafeReportPage from './UnsafeReportPage'
 import HomeMap from './components/HomeMap'
+import type { HomeMapHandle } from './components/HomeMap'
 
 function App() {
   const [currentPage, setCurrentPage] = useState<'home' | 'danger' | 'unsafe-report'>('home')
   const [showDangerMap, setShowDangerMap] = useState(false)
+  const homeMapRef = useRef<HomeMapHandle>(null)
+  const [queryingDanger, setQueryingDanger] = useState(false)
 
   const handleNavigateToDanger = () => {
     setCurrentPage('danger')
@@ -26,6 +29,20 @@ function App() {
 
   const handleHideDangerMap = () => {
     setShowDangerMap(false)
+  }
+
+  const handleQueryDangerZones = async () => {
+    if (!homeMapRef.current) return
+    if (!homeMapRef.current.canQuery()) {
+      alert('地圖尚未載入完成，請稍候再試')
+      return
+    }
+    setQueryingDanger(true)
+    try {
+      await homeMapRef.current.queryDangerZones()
+    } finally {
+      setQueryingDanger(false)
+    }
   }
 
   return (
@@ -85,7 +102,18 @@ function App() {
               </div>
 
               <div className="app__map-container">
-                <HomeMap />
+                <HomeMap ref={homeMapRef} />
+              </div>
+
+              <div className="app__query-danger-btn-container">
+                <button
+                  type="button"
+                  className="app__query-danger-btn"
+                  onClick={handleQueryDangerZones}
+                  disabled={queryingDanger || !homeMapRef.current?.canQuery()}
+                >
+                  {queryingDanger ? '查詢中...' : '查詢此處危險狀態'}
+                </button>
               </div>
 
               <div className="app__hide-map-btn-container">

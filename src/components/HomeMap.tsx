@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 
 // Google Maps API Key (首頁專用)
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDu0788Su8S96hJ_MDkgfqYt_6Kbpa92wI'
@@ -94,12 +94,32 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
   })
 }
 
-export default function HomeMap() {
+export interface HomeMapHandle {
+  queryDangerZones: () => Promise<void>
+  canQuery: () => boolean
+  isQuerying: () => boolean
+}
+
+const HomeMap = forwardRef<HomeMapHandle>((_props, ref) => {
   const mapRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null)
+  const [, setMapZoom] = useState<number | null>(null)
+  const [mapBounds, setMapBounds] = useState<{
+    north: number
+    south: number
+    east: number
+    west: number
+    distanceToEdge: { horizontal: number; vertical: number } // 單位：公尺
+  } | null>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
   const userMarkerRef = useRef<google.maps.Marker | null>(null)
+  const dangerZoneMarkersRef = useRef<google.maps.Marker[]>([]) // 危險區域標記（群集）
+  const noisePointMarkersRef = useRef<google.maps.Marker[]>([]) // 噪音點標記
+  const dangerZoneCirclesRef = useRef<google.maps.Circle[]>([]) // 危險區域圓形
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
+  const [queryingDanger, setQueryingDanger] = useState(false)
 
   // 初始化地圖
   useEffect(() => {
@@ -114,9 +134,9 @@ export default function HomeMap() {
     if (mapRef.current) {
       const container = mapRef.current.closest('.app__map-container') as HTMLElement
       if (container) {
-        // 確保容器尺寸為 378x400
+        // 確保容器尺寸為 378x378 (正方形)
         container.style.width = '378px'
-        container.style.height = '400px'
+        container.style.height = '378px'
         container.style.margin = '0 auto'
         console.log('[HomeMap] 容器設置完成，尺寸:', container.offsetWidth, 'x', container.offsetHeight)
       }
@@ -162,6 +182,122 @@ export default function HomeMap() {
         mapInstanceRef.current = newMap
         console.log('[HomeMap] 地圖實例創建成功:', newMap)
 
+        // 創建資訊視窗
+        infoWindowRef.current = new window.google.maps.InfoWindow()
+
+        // 獲取初始中心點
+        const initialCenter = newMap.getCenter()
+        if (initialCenter) {
+          setMapCenter({
+            lat: initialCenter.lat(),
+            lng: initialCenter.lng(),
+          })
+          console.log('[HomeMap] 初始地圖中心點:', {
+            lat: initialCenter.lat(),
+            lng: initialCenter.lng(),
+          })
+        }
+
+        // 獲取初始縮放級別
+        const initialZoom = newMap.getZoom()
+        if (initialZoom !== undefined) {
+          setMapZoom(initialZoom)
+          console.log('[HomeMap] 初始地圖縮放級別:', initialZoom)
+        }
+
+        // 監聽地圖中心變化
+        window.google.maps.event.addListener(newMap, 'center_changed', () => {
+          const center = newMap.getCenter()
+          if (center) {
+            const centerCoords = {
+              lat: center.lat(),
+              lng: center.lng(),
+            }
+            setMapCenter(centerCoords)
+            console.log('[HomeMap] 地圖中心點已更新:', centerCoords)
+          }
+        })
+
+        // 監聽地圖縮放變化
+        window.google.maps.event.addListener(newMap, 'zoom_changed', () => {
+          const zoom = newMap.getZoom()
+          if (zoom !== undefined) {
+            setMapZoom(zoom)
+            console.log('[HomeMap] 地圖縮放級別已更新:', zoom)
+          }
+          // 縮放變化時重新計算邊界距離
+          calculateMapBounds(newMap)
+        })
+
+        // 計算地圖邊界和中心點到邊界的距離
+        const calculateMapBounds = (map: google.maps.Map) => {
+          const bounds = map.getBounds()
+          if (!bounds) return
+
+          const center = map.getCenter()
+          if (!center) return
+
+          const ne = bounds.getNorthEast()
+          const sw = bounds.getSouthWest()
+
+          // 計算中心點到邊界的距離（使用 Haversine 公式）
+          const calculateDistance = (
+            lat1: number,
+            lng1: number,
+            lat2: number,
+            lng2: number
+          ): number => {
+            const R = 6371000 // 地球半徑（公尺）
+            const dLat = ((lat2 - lat1) * Math.PI) / 180
+            const dLng = ((lng2 - lng1) * Math.PI) / 180
+            const a =
+              Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos((lat1 * Math.PI) / 180) *
+                Math.cos((lat2 * Math.PI) / 180) *
+                Math.sin(dLng / 2) *
+                Math.sin(dLng / 2)
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+            return R * c
+          }
+
+          const centerLat = center.lat()
+          const centerLng = center.lng()
+
+          // 計算水平距離（中心點到東邊界或西邊界，取較小值）
+          const distanceToEast = calculateDistance(centerLat, centerLng, centerLat, ne.lng())
+          const distanceToWest = calculateDistance(centerLat, centerLng, centerLat, sw.lng())
+          const horizontalDistance = Math.min(distanceToEast, distanceToWest)
+
+          // 計算垂直距離（中心點到北邊界或南邊界，取較小值）
+          const distanceToNorth = calculateDistance(centerLat, centerLng, ne.lat(), centerLng)
+          const distanceToSouth = calculateDistance(centerLat, centerLng, sw.lat(), centerLng)
+          const verticalDistance = Math.min(distanceToNorth, distanceToSouth)
+
+          const boundsData = {
+            north: ne.lat(),
+            south: sw.lat(),
+            east: ne.lng(),
+            west: sw.lng(),
+            distanceToEdge: {
+              horizontal: horizontalDistance,
+              vertical: verticalDistance,
+            },
+          }
+
+          setMapBounds(boundsData)
+          console.log('[HomeMap] 地圖邊界和距離:', boundsData)
+        }
+
+        // 監聽地圖拖動和縮放變化，更新邊界距離
+        window.google.maps.event.addListener(newMap, 'bounds_changed', () => {
+          calculateMapBounds(newMap)
+        })
+
+        // 初始計算邊界（等待地圖完全渲染）
+        setTimeout(() => {
+          calculateMapBounds(newMap)
+        }, 500)
+
         // 先顯示地圖，不等待定位
         setLoading(false)
 
@@ -172,10 +308,10 @@ export default function HomeMap() {
             console.log('[HomeMap] 當前容器尺寸:', mapRef.current.offsetWidth, 'x', mapRef.current.offsetHeight)
             window.google?.maps.event.trigger(mapInstanceRef.current, 'resize')
             
-            // 如果容器尺寸為 0，強制設置一個最小高度
-            if (mapRef.current.offsetHeight === 0) {
-              console.warn('[HomeMap] 容器高度為 0，嘗試設置最小高度')
-              mapRef.current.style.minHeight = '400px'
+                  // 如果容器尺寸為 0，強制設置一個最小高度
+                  if (mapRef.current.offsetHeight === 0) {
+                    console.warn('[HomeMap] 容器高度為 0，嘗試設置最小高度')
+                    mapRef.current.style.minHeight = '378px'
               setTimeout(() => {
                 if (mapInstanceRef.current) {
                   window.google?.maps.event.trigger(mapInstanceRef.current, 'resize')
@@ -233,6 +369,264 @@ export default function HomeMap() {
   }, [])
 
   /**
+   * 清除危險區域標記
+   */
+  const clearDangerZones = () => {
+    dangerZoneMarkersRef.current.forEach((marker) => {
+      marker.setMap(null)
+    })
+    dangerZoneMarkersRef.current = []
+    noisePointMarkersRef.current.forEach((marker) => {
+      marker.setMap(null)
+    })
+    noisePointMarkersRef.current = []
+    dangerZoneCirclesRef.current.forEach((circle) => {
+      circle.setMap(null)
+    })
+    dangerZoneCirclesRef.current = []
+  }
+
+  /**
+   * 根據風險等級獲取顏色
+   */
+  const getRiskColor = (riskLevel: string): { fill: string; stroke: string } => {
+    switch (riskLevel) {
+      case 'critical':
+        return { fill: '#d45251', stroke: '#b03d3c' } // 紅色 - 極高風險
+      case 'high':
+        return { fill: '#ff9343', stroke: '#e67e22' } // 橙色 - 高風險
+      case 'medium':
+        return { fill: '#F5BA4B', stroke: '#d4a03a' } // 黃色 - 中等風險
+      case 'low':
+        return { fill: '#5ab4c5', stroke: '#318ea0' } // 藍色 - 低風險
+      default:
+        return { fill: '#5ab4c5', stroke: '#318ea0' } // 預設藍色
+    }
+  }
+
+  /**
+   * 繪製危險區域
+   */
+  const drawDangerZones = (data: {
+    clusters: Array<{
+      cluster_id: number
+      point_count: number
+      alpha: number
+      lat: number
+      lng: number
+      risk_level: string
+    }>
+    noise_points: Array<{
+      id: number
+      lat: number
+      lng: number
+      alpha: number
+    }>
+    geojson: {
+      type: string
+      features: Array<{
+        type: string
+        geometry: {
+          type: string
+          coordinates: number[]
+        }
+        properties: {
+          type: string
+          cluster_id?: number
+          id?: number
+          alpha: number
+          risk_level?: string
+          point_count?: number
+        }
+      }>
+    }
+  }) => {
+    if (!mapInstanceRef.current || !window.google) return
+
+    clearDangerZones()
+
+    const mapInstance = mapInstanceRef.current
+
+    // 繪製群集
+    data.clusters.forEach((cluster) => {
+      const colors = getRiskColor(cluster.risk_level)
+
+      // 繪製群集中心點標記
+      const marker = new window.google.maps.Marker({
+        position: { lat: cluster.lat, lng: cluster.lng },
+        map: mapInstance,
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 12,
+          fillColor: colors.fill,
+          fillOpacity: 0.9,
+          strokeColor: '#ffffff',
+          strokeWeight: 3,
+        },
+        title: `危險群集 #${cluster.cluster_id} (${cluster.risk_level})`,
+      })
+
+      // 添加資訊視窗
+      const infoContent = `
+        <div style="padding: 0.75rem; min-width: 220px;">
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 16px; font-weight: 600; color: ${colors.fill};">危險群集 #${cluster.cluster_id}</h3>
+          <p style="margin: 4px 0; font-size: 14px; color: #475259;">
+            <strong>風險等級:</strong> <span style="color: ${colors.fill};">${cluster.risk_level}</span>
+          </p>
+          <p style="margin: 4px 0; font-size: 14px; color: #475259;">
+            <strong>點位數量:</strong> ${cluster.point_count}
+          </p>
+          <p style="margin: 4px 0; font-size: 14px; color: #475259;">
+            <strong>Alpha 值:</strong> ${cluster.alpha.toFixed(2)}
+          </p>
+          <p style="margin: 4px 0; font-size: 12px; color: #475259;">
+            位置: (${cluster.lat.toFixed(6)}, ${cluster.lng.toFixed(6)})
+          </p>
+        </div>
+      `
+
+      marker.addListener('click', () => {
+        if (infoWindowRef.current) {
+          infoWindowRef.current.setContent(infoContent)
+          infoWindowRef.current.open(mapInstance, marker)
+        }
+      })
+
+      dangerZoneMarkersRef.current.push(marker)
+
+      // 根據 alpha 值繪製圓形範圍（alpha 越大，圓形越大）
+      const radius = Math.max(100, Math.min(800, cluster.alpha * 150))
+      const circle = new window.google.maps.Circle({
+        center: { lat: cluster.lat, lng: cluster.lng },
+        radius: radius,
+        map: mapInstance,
+        fillColor: colors.fill,
+        fillOpacity: 0.2,
+        strokeColor: colors.stroke,
+        strokeOpacity: 0.6,
+        strokeWeight: 2,
+      })
+
+      dangerZoneCirclesRef.current.push(circle)
+    })
+
+    // 繪製噪音點
+    data.noise_points.forEach((noisePoint) => {
+      const marker = new window.google.maps.Marker({
+        position: { lat: noisePoint.lat, lng: noisePoint.lng },
+        map: mapInstance,
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 6,
+          fillColor: '#9ca3af', // 灰色 - 噪音點
+          fillOpacity: 0.7,
+          strokeColor: '#ffffff',
+          strokeWeight: 1,
+        },
+        title: `噪音點 #${noisePoint.id} (Alpha: ${noisePoint.alpha.toFixed(2)})`,
+      })
+
+      // 添加資訊視窗
+      const infoContent = `
+        <div style="padding: 0.75rem; min-width: 200px;">
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 16px; font-weight: 600; color: #9ca3af;">噪音點 #${noisePoint.id}</h3>
+          <p style="margin: 4px 0; font-size: 14px; color: #475259;">
+            <strong>Alpha 值:</strong> ${noisePoint.alpha.toFixed(2)}
+          </p>
+          <p style="margin: 4px 0; font-size: 12px; color: #475259;">
+            位置: (${noisePoint.lat.toFixed(6)}, ${noisePoint.lng.toFixed(6)})
+          </p>
+          <p style="margin: 8px 0 0 0; font-size: 12px; color: #9ca3af;">
+            此點未形成群集，可能是偶發事件
+          </p>
+        </div>
+      `
+
+      marker.addListener('click', () => {
+        if (infoWindowRef.current) {
+          infoWindowRef.current.setContent(infoContent)
+          infoWindowRef.current.open(mapInstance, marker)
+        }
+      })
+
+      noisePointMarkersRef.current.push(marker)
+    })
+  }
+
+  /**
+   * 查詢危險區域
+   */
+  const handleQueryDangerZones = async () => {
+    if (!mapCenter || !mapBounds) {
+      console.warn('地圖數據不完整，無法查詢危險區域')
+      alert('地圖尚未載入完成，請稍候再試')
+      return
+    }
+
+    setQueryingDanger(true)
+    try {
+      // 使用地圖中心點和邊界距離
+      const lat = mapCenter.lat
+      const lng = mapCenter.lng
+      // 使用水平距離作為半徑（公尺）
+      const radius = Math.round(mapBounds.distanceToEdge.horizontal)
+      const eps = 500 // 固定值
+      const minpoints = 3 // 固定值
+
+      console.log('查詢危險區域參數:', { lat, lng, radius, eps, minpoints })
+
+      const response = await fetch('https://ws10.csie.ntu.edu.tw:54443/api/danger-zones', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lat,
+          lng,
+          radius,
+          eps,
+          minpoints,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`API 回應錯誤: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      console.log('危險區域查詢結果:', result)
+
+      if (result.success && result.data) {
+        // 繪製危險區域
+        drawDangerZones(result.data)
+        
+        // 顯示統計資訊
+        const stats = result.data.statistics
+        console.log('統計資訊:', {
+          總點數: stats.total_points_in_range,
+          群集數量: stats.clusters_found,
+          噪音點數: stats.noise_points,
+          總Alpha: stats.total_alpha_sum,
+          群集Alpha: stats.clusters_alpha_sum,
+          噪音Alpha: stats.noise_alpha_sum,
+        })
+      }
+    } catch (error) {
+      console.error('查詢危險區域失敗:', error)
+      alert('查詢危險區域失敗，請稍後再試')
+    } finally {
+      setQueryingDanger(false)
+    }
+  }
+
+  // 暴露方法給父組件
+  useImperativeHandle(ref, () => ({
+    queryDangerZones: handleQueryDangerZones,
+    canQuery: () => !!(mapCenter && mapBounds),
+    isQuerying: () => queryingDanger,
+  }))
+
+  /**
    * 添加用戶位置標記
    */
   const addUserMarker = (lat: number, lng: number, mapInstance: google.maps.Map | null) => {
@@ -275,5 +669,9 @@ export default function HomeMap() {
       <div ref={mapRef} className="home-map__container" />
     </div>
   )
-}
+})
+
+HomeMap.displayName = 'HomeMap'
+
+export default HomeMap
 
