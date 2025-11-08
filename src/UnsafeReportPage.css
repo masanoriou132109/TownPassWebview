@@ -1,0 +1,186 @@
+.unsafe-report-page {
+  height: 100vh;
+  width: 100%;
+  background: var(--tp-layer);
+  color: var(--tp-text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.unsafe-report-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--tp-surface);
+  border-bottom: 1px solid var(--tp-line);
+}
+
+.unsafe-report-page__nav-btn {
+  border: none;
+  background: transparent;
+  padding: 0.4rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unsafe-report-page__nav-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.unsafe-report-page__headline {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--tp-deep);
+  margin: 0;
+}
+
+.unsafe-report-page__header-spacer {
+  width: 40px; /* 與返回按鈕寬度一致，保持標題置中 */
+}
+
+.unsafe-report-page__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.unsafe-report-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.unsafe-report-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.unsafe-report-page__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tp-deep);
+}
+
+.unsafe-report-page__required {
+  color: var(--tp-critical);
+  margin-left: 0.25rem;
+}
+
+.unsafe-report-page__select {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--tp-line);
+  border-radius: 12px;
+  background: var(--tp-surface);
+  font-size: 0.95rem;
+  color: var(--tp-text);
+  outline: none;
+  transition: border-color 160ms ease;
+  cursor: pointer;
+}
+
+.unsafe-report-page__select:focus {
+  border-color: var(--tp-primary);
+}
+
+.unsafe-report-page__select:invalid {
+  border-color: var(--tp-line);
+}
+
+.unsafe-report-page__textarea {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--tp-line);
+  border-radius: 12px;
+  background: var(--tp-surface);
+  font-size: 0.95rem;
+  color: var(--tp-text);
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  transition: border-color 160ms ease;
+}
+
+.unsafe-report-page__textarea:focus {
+  border-color: var(--tp-primary);
+}
+
+.unsafe-report-page__textarea::placeholder {
+  color: var(--tp-text-muted);
+}
+
+.unsafe-report-page__info {
+  padding: 1rem;
+  background: var(--tp-layer);
+  border-radius: 12px;
+  border: 1px solid var(--tp-line);
+}
+
+.unsafe-report-page__info p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tp-text-muted);
+  line-height: 1.5;
+}
+
+.unsafe-report-page__actions {
+  padding: 1rem;
+  background: var(--tp-surface);
+  border-top: 1px solid var(--tp-line);
+}
+
+.unsafe-report-page__submit-btn {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--tp-primary);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.unsafe-report-page__submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(12, 25, 33, 0.1);
+  background: var(--tp-primary-strong);
+}
+
+.unsafe-report-page__submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.unsafe-report-page__submit-btn:focus-visible {
+  outline: 3px solid rgba(90, 180, 197, 0.3);
+  outline-offset: 4px;
+}
+
+.unsafe-report-page__submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.unsafe-report-page__submit-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.unsafe-report-page__footer {
+  border-top: 1px solid var(--tp-line);
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--tp-text-muted);
+  background: var(--tp-layer-strong);
+}
+

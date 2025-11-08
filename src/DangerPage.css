@@ -1,10 +1,11 @@
 .danger-page {
-  min-height: 100vh;
+  height: 100vh;
   width: 100%;
   background: var(--tp-layer);
   color: var(--tp-text);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .danger-page__header {
@@ -47,6 +48,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0; /* 允許 flex 子元素縮小 */
 }
 
 .danger-page__map-container {
@@ -56,6 +58,66 @@
   border: 1px solid var(--tp-line);
   position: relative;
   min-height: 0; /* 允許 flex 子元素縮小 */
+  overflow: hidden; /* 確保地圖不會溢出 */
+}
+
+.danger-page__map-container > * {
+  width: 100%;
+  height: 100%;
+}
+
+/* 地圖樣式 */
+.safety-map {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.safety-map__container {
+  width: 100%;
+  height: 100%;
+  min-height: 0; /* 允許 flex 子元素縮小 */
+}
+
+.safety-map__loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--tp-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.safety-map__loading-overlay {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--tp-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.safety-map__error {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: var(--tp-critical);
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .danger-page__actions {
@@ -113,5 +175,52 @@
   font-size: 0.85rem;
   color: var(--tp-text-muted);
   background: var(--tp-layer-strong);
+}
+
+.danger-page__route-status {
+  margin: 0 1rem 1rem 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.danger-page__route-status--success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #4caf50;
+}
+
+.danger-page__route-status--error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef5350;
+}
+
+.danger-page__route-status--info {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #42a5f5;
+}
+
+.danger-page__route-status p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.danger-page__route-status p + p {
+  margin-top: 0.5rem;
+}
+
+.danger-page__action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.danger-page__action-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 

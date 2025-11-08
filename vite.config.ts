@@ -7,4 +7,8 @@ export default defineConfig({
   server: {
     allowedHosts: ['ws10.csie.ntu.edu.tw'],
   },
+  optimizeDeps: {
+    include: ['@googlemaps/js-api-loader'],
+    force: true, // 強制重新優化
+  },
 })

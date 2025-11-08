@@ -1,22 +1,37 @@
 import { useState } from 'react'
 import './App.css'
 import DangerPage from './DangerPage'
+import UnsafeReportPage from './UnsafeReportPage'
+import HomeMap from './components/HomeMap'
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<'home' | 'danger'>('home')
+  const [currentPage, setCurrentPage] = useState<'home' | 'danger' | 'unsafe-report'>('home')
+  const [showDangerMap, setShowDangerMap] = useState(false)
 
   const handleNavigateToDanger = () => {
     setCurrentPage('danger')
+  }
+
+  const handleNavigateToUnsafeReport = () => {
+    setCurrentPage('unsafe-report')
   }
 
   const handleBack = () => {
     setCurrentPage('home')
   }
 
+  const handleShowDangerMap = () => {
+    setShowDangerMap(true)
+  }
+
+  const handleHideDangerMap = () => {
+    setShowDangerMap(false)
+  }
+
   return (
     <div className="app-container">
       <div
-        className={`app app--home ${currentPage === 'danger' ? 'app--slide-out' : ''}`}
+        className={`app app--home ${currentPage !== 'home' ? 'app--slide-out' : ''}`}
       >
         <header className="app__header">
           <button type="button" className="app__nav-btn" aria-label="返回">
@@ -35,39 +50,91 @@ function App() {
         </header>
 
         <main className="app__content" aria-label="危險通報操作">
-          <div className="app__search-container">
-            <input
-              type="search"
-              className="app__search"
-              placeholder="搜尋地點..."
-              aria-label="搜尋地點"
-            />
-            <svg
-              className="app__search-icon"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z"
-                stroke="#475259"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M21 21L16.65 16.65"
-                stroke="#475259"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          {showDangerMap && (
+            <>
+              <div className="app__search-container">
+                <input
+                  type="search"
+                  className="app__search"
+                  placeholder="搜尋地點..."
+                  aria-label="搜尋地點"
+                />
+                <svg
+                  className="app__search-icon"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z"
+                    stroke="#475259"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M21 21L16.65 16.65"
+                    stroke="#475259"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <div className="app__map-container">
+                <HomeMap />
+              </div>
+
+              <div className="app__hide-map-btn-container">
+                <button
+                  type="button"
+                  className="app__hide-map-btn"
+                  onClick={handleHideDangerMap}
+                >
+                  隱藏危險地圖
+                </button>
+              </div>
+            </>
+          )}
+
+          {!showDangerMap && (
+            <div className="app__show-map-btn-container">
+              <button
+                type="button"
+                className="app__show-map-btn"
+                onClick={handleShowDangerMap}
+              >
+                顯示危險地圖
+              </button>
+            </div>
+          )}
 
           <div className="app__buttons">
+            <button
+              type="button"
+              className="app__action-btn"
+              onClick={handleNavigateToUnsafeReport}
+            >
+              <svg
+                className="app__action-icon"
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12ZM12 7C12.5523 7 13 7.44772 13 8V11C13 11.5523 12.5523 12 12 12C11.4477 12 11 11.5523 11 11V8C11 7.44772 11.4477 7 12 7ZM13 14C13 13.4477 12.5523 13 12 13C11.4477 13 11 13.4477 11 14V15C11 15.5523 11.4477 16 12 16C12.5523 16 13 15.5523 13 15V14Z"
+                  fill="#F5BA4B"
+                />
+              </svg>
+              <span>不安全回報</span>
+            </button>
             <button
               type="button"
               className="app__action-btn"
@@ -130,24 +197,6 @@ function App() {
               </svg>
               <span>我有危險</span>
             </button>
-            <button type="button" className="app__action-btn">
-              <svg
-                className="app__action-icon"
-                width="48"
-                height="48"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                  d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12ZM12 7C12.5523 7 13 7.44772 13 8V11C13 11.5523 12.5523 12 12 12C11.4477 12 11 11.5523 11 11V8C11 7.44772 11.4477 7 12 7ZM13 14C13 13.4477 12.5523 13 12 13C11.4477 13 11 13.4477 11 14V15C11 15.5523 11.4477 16 12 16C12.5523 16 13 15.5523 13 15V14Z"
-                  fill="#F5BA4B"
-                />
-              </svg>
-              <span>不安全回報</span>
-            </button>
           </div>
         </main>
 
@@ -158,6 +207,12 @@ function App() {
         className={`danger-page-wrapper ${currentPage === 'danger' ? 'danger-page-wrapper--active' : ''}`}
       >
         <DangerPage onBack={handleBack} />
+      </div>
+
+      <div
+        className={`unsafe-report-page-wrapper ${currentPage === 'unsafe-report' ? 'unsafe-report-page-wrapper--active' : ''}`}
+      >
+        <UnsafeReportPage onBack={handleBack} />
       </div>
     </div>
   )

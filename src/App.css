@@ -62,18 +62,21 @@
 }
 
 .app__content {
-  padding: 1rem;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  overflow-y: auto;
+  min-height: 0;
+  position: relative;
+  padding-bottom: 140px;
+  /* 為固定按鈕留出空間 */
 }
 
 .app__search-container {
   position: relative;
   width: 100%;
-  max-width: 320px;
-  margin: 0 auto;
+  padding: 1rem;
+  flex-shrink: 0;
 }
 
 .app__search {
@@ -86,6 +89,7 @@
   color: var(--tp-text);
   outline: none;
   transition: border-color 160ms ease;
+  box-sizing: border-box;
 }
 
 .app__search:focus {
@@ -94,27 +98,169 @@
 
 .app__search-icon {
   position: absolute;
-  right: 0.75rem;
+  right: 1.75rem;
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
 }
 
+.app__map-container {
+  width: 378px;
+  height: 400px;
+  margin: 0 auto;
+  overflow: hidden;
+  position: relative;
+  padding: 1rem;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.app__map-container>* {
+  width: 100%;
+  height: 100%;
+}
+
+.app__hide-map-btn-container {
+  padding: 1rem;
+  flex-shrink: 0;
+}
+
+.app__hide-map-btn {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: 1px solid var(--tp-line);
+  border-radius: 12px;
+  background: var(--tp-surface);
+  color: var(--tp-deep);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.app__hide-map-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(12, 25, 33, 0.1);
+  background: var(--tp-layer);
+}
+
+.app__hide-map-btn:active {
+  transform: translateY(0);
+}
+
+.app__hide-map-btn:focus-visible {
+  outline: 3px solid rgba(90, 180, 197, 0.3);
+  outline-offset: 4px;
+}
+
+/* 首頁地圖樣式 */
+.home-map {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--tp-line);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.home-map__container {
+  width: 100%;
+  height: 100%;
+}
+
+.home-map__loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--tp-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.home-map__error {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: var(--tp-critical);
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.app__show-map-btn-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  min-height: 0;
+}
+
+.app__show-map-btn {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--tp-primary);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.app__show-map-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(12, 25, 33, 0.1);
+  background: var(--tp-primary-strong);
+}
+
+.app__show-map-btn:active {
+  transform: translateY(0);
+}
+
+.app__show-map-btn:focus-visible {
+  outline: 3px solid rgba(90, 180, 197, 0.3);
+  outline-offset: 4px;
+}
+
 .app__buttons {
   display: flex;
   gap: 1rem;
-  padding: 0 0.5rem;
-  justify-content: center;
+  padding: 1rem;
+  flex-shrink: 0;
+  position: fixed;
+  bottom: 60px;
+  /* 在頁尾上方 */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 420px;
+  z-index: 10;
+  box-sizing: border-box;
+  background: var(--tp-layer);
+  /* 確保按鈕有背景，不會被地圖內容穿透 */
 }
 
 .app__action-btn {
   flex: 1;
-  max-width: 160px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-  padding: 1.5rem 1rem;
+  padding: 1.25rem 1rem;
   border: 1px solid rgba(12, 25, 33, 0.2);
   border-radius: 16px;
   background: var(--tp-surface);
@@ -154,6 +300,7 @@
   font-size: 0.85rem;
   color: var(--tp-text-muted);
   background: var(--tp-layer-strong);
+  flex-shrink: 0;
 }
 
 .danger-page-wrapper {
@@ -168,5 +315,20 @@
 }
 
 .danger-page-wrapper--active {
+  transform: translateX(0);
+}
+
+.unsafe-report-page-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 100vh;
+  transform: translateX(100%);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+}
+
+.unsafe-report-page-wrapper--active {
   transform: translateX(0);
 }
