@@ -74,6 +74,7 @@ interface SafetyMapProps {
   routePoints?: RoutePoint[]
   routePolyline?: string | null
   processedPoints?: ProcessedPoint[]
+  showRoutePointCircles?: boolean // 是否显示路线点位的半径圆（默认 true）
 }
 
 // 預設位置（台北市政府）
@@ -87,6 +88,7 @@ export default function SafetyMap({
   routePoints = [],
   routePolyline = null,
   processedPoints = [],
+  showRoutePointCircles = true, // 默认显示半径圆
 }: SafetyMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
@@ -96,10 +98,12 @@ export default function SafetyMap({
   const safePlaceMarkersRef = useRef<google.maps.Marker[]>([]) // 安全點位標記
   const cctvMarkersRef = useRef<google.maps.Marker[]>([]) // CCTV 標記
   const routeCirclesRef = useRef<google.maps.Circle[]>([]) // 路線點位圓形
+  const routePointMarkersRef = useRef<google.maps.Marker[]>([]) // 路線點位標記（不显示半径时使用）
   const processedPointsMarkersRef = useRef<google.maps.Marker[]>([]) // 處理過的點位標記
   const routePolylineRef = useRef<google.maps.Polyline | null>(null) // 路線折線
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
+  const watchPositionIdRef = useRef<number | null>(null) // 位置監聽 ID
 
   // 初始化地圖
   useEffect(() => {
@@ -123,17 +127,45 @@ export default function SafetyMap({
       .then(async () => {
         if (!mapRef.current || !window.google) return
 
-               // 創建地圖
-               const newMap = new window.google.maps.Map(mapRef.current, {
-                 center: currentLocation,
-                 zoom: 16,
-                 zoomControl: true,
-                 streetViewControl: false,
-                 mapTypeControl: false,
-                 fullscreenControl: true,
-               })
+        // 確保所有庫都已完全加載
+        if (!window.google.maps || !window.google.maps.Map) {
+          console.error('[SafetyMap] Google Maps API 未完全加載')
+          setError('載入 Google Maps 失敗')
+          setLoading(false)
+          return
+        }
+
+        // 等待一小段時間確保所有庫完全初始化（特別是 geometry 庫）
+        await new Promise(resolve => setTimeout(resolve, 200))
+
+        // 檢查 geometry 庫是否已加載
+        if (!window.google.maps.geometry || !window.google.maps.geometry.encoding) {
+          console.warn('[SafetyMap] geometry.encoding 未加載，將在需要時重試')
+        }
+
+        // 創建地圖
+        const newMap = new window.google.maps.Map(mapRef.current, {
+          center: currentLocation,
+          zoom: 16,
+          zoomControl: true,
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: true,
+        })
 
         mapInstanceRef.current = newMap
+
+        // 等待地圖完全初始化
+        window.google.maps.event.addListenerOnce(newMap, 'idle', () => {
+          console.log('[SafetyMap] 地圖完全加載完成')
+          
+          // 再次檢查 geometry 庫是否已加載
+          if (window.google.maps.geometry && window.google.maps.geometry.encoding) {
+            console.log('[SafetyMap] geometry.encoding 已確認加載')
+          } else {
+            console.warn('[SafetyMap] geometry.encoding 仍未加載')
+          }
+        })
 
         // 創建資訊視窗
         infoWindowRef.current = new window.google.maps.InfoWindow()
@@ -141,7 +173,7 @@ export default function SafetyMap({
         // 地圖已創建，先顯示地圖
         setLoading(false)
 
-        // 獲取用戶位置
+        // 獲取用戶位置（初始位置）
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -159,6 +191,31 @@ export default function SafetyMap({
               addUserMarker(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng, newMap)
             }
           )
+
+          // 開始實時監聽位置變化
+          const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              const location = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+              }
+              console.log('[SafetyMap] 位置更新:', location)
+              setCurrentLocation(location)
+              // 更新用戶位置標記
+              if (mapInstanceRef.current) {
+                addUserMarker(location.lat, location.lng, mapInstanceRef.current)
+              }
+            },
+            (error) => {
+              console.warn('[SafetyMap] 位置監聽錯誤:', error)
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0, // 不使用緩存，總是獲取最新位置
+            }
+          )
+          watchPositionIdRef.current = watchId
         } else {
           // 使用預設位置
           addUserMarker(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng, newMap)
@@ -184,6 +241,16 @@ export default function SafetyMap({
     }
   }, [loading])
 
+  // 清理位置監聽（組件卸載時）
+  useEffect(() => {
+    return () => {
+      if (watchPositionIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchPositionIdRef.current)
+        console.log('[SafetyMap] 已停止位置監聽')
+      }
+    }
+  }, [])
+
   /**
    * 添加用戶位置標記
    */
@@ -204,7 +271,7 @@ export default function SafetyMap({
         scale: 10,
         fillColor: '#5ab4c5',
         fillOpacity: 1,
-        strokeColor: '#ffffff',
+        strokeColor: '#000000',
         strokeWeight: 3,
       },
       title: '您的位置',
@@ -215,17 +282,9 @@ export default function SafetyMap({
   /**
    * 根據類型獲取標記顏色
    */
-  const getMarkerColor = (type?: string): string => {
-    switch (type) {
-      case 'police':
-        return '#318ea0' // 深藍色 - 警察局
-      case 'fire':
-        return '#d45251' // 紅色 - 消防局
-      case 'shelter':
-        return '#ff9343' // 橙色 - 避難所
-      default:
-        return '#5ab4c5' // 預設藍色
-    }
+  const getMarkerColor = (_type?: string): string => {
+    // 所有安全點位都使用主題淺藍色
+    return '#5ab4c5' // 主題淺藍色
   }
 
   /**
@@ -340,7 +399,7 @@ export default function SafetyMap({
         icon: {
           path: window.google.maps.SymbolPath.CIRCLE,
           scale: 6,
-          fillColor: '#475259',
+          fillColor: '#9ca3af', // 灰色
           fillOpacity: 0.8,
           strokeColor: '#ffffff',
           strokeWeight: 1,
@@ -380,32 +439,52 @@ export default function SafetyMap({
       circle.setMap(null)
     })
     routeCirclesRef.current = []
+    routePointMarkersRef.current.forEach((marker) => {
+      marker.setMap(null)
+    })
+    routePointMarkersRef.current = []
   }
 
   /**
-   * 繪製路線點位圓形（以 searchRadius 為半徑）
+   * 繪製路線點位（可選擇顯示圓形或標記）
    */
-  const drawRouteMarkers = (points: RoutePoint[], mapInstance: google.maps.Map | null) => {
+  const drawRouteMarkers = (points: RoutePoint[], mapInstance: google.maps.Map | null, showCircles: boolean = true) => {
     if (!mapInstance || !window.google) return
 
     clearRouteMarkers()
 
     points.forEach((point) => {
-      // 使用 searchRadius 作為半徑（單位：米），如果沒有則使用默認值
-      const radius = point.searchRadius || 50
-
-      const circle = new window.google.maps.Circle({
-        center: { lat: point.lat, lng: point.lng },
-        radius: radius, // 半徑（米）
-        map: mapInstance,
-        fillColor: '#9ca3af', // 灰色
-        fillOpacity: 0.2,
-        strokeColor: '#6b7280', // 深灰色邊框
-        strokeOpacity: 0.4,
-        strokeWeight: 1,
-      })
-
-      routeCirclesRef.current.push(circle)
+      if (showCircles) {
+        // 顯示半徑圓形
+        const radius = point.searchRadius || 50
+        const circle = new window.google.maps.Circle({
+          center: { lat: point.lat, lng: point.lng },
+          radius: radius, // 半徑（米）
+          map: mapInstance,
+          fillColor: '#9ca3af', // 灰色
+          fillOpacity: 0.2,
+          strokeColor: '#6b7280', // 深灰色邊框
+          strokeOpacity: 0.4,
+          strokeWeight: 1,
+        })
+        routeCirclesRef.current.push(circle)
+      } else {
+        // 只顯示點標記（不顯示半徑）
+        const marker = new window.google.maps.Marker({
+          position: { lat: point.lat, lng: point.lng },
+          map: mapInstance,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 6,
+            fillColor: '#6b7280', // 灰色
+            fillOpacity: 0.8,
+            strokeColor: '#ffffff',
+            strokeWeight: 2,
+          },
+          title: `路線點位 ${point.id}`,
+        })
+        routePointMarkersRef.current.push(marker)
+      }
     })
   }
 
@@ -436,6 +515,12 @@ export default function SafetyMap({
     clearRoutePolyline()
 
     try {
+      // 檢查 geometry.encoding 是否可用
+      if (!window.google.maps.geometry || !window.google.maps.geometry.encoding || !window.google.maps.geometry.encoding.decodePath) {
+        console.warn('[SafetyMap] geometry.encoding.decodePath 不可用，無法繪製路線')
+        return
+      }
+
       // 解碼 polyline 字符串為座標點陣列
       const path = window.google.maps.geometry.encoding.decodePath(polylineString)
 
@@ -443,7 +528,7 @@ export default function SafetyMap({
       const polyline = new window.google.maps.Polyline({
         path: path,
         geodesic: true,
-        strokeColor: '#5ab4c5',
+        strokeColor: '#d45251', // 紅色
         strokeOpacity: 0.8,
         strokeWeight: 4,
         map: mapInstance,
@@ -462,12 +547,11 @@ export default function SafetyMap({
     }
   }
 
-  // 當路線點位數據更新時，繪製路線點位標記
+  // 當路線點位數據更新時，繪製路線點位（根據 showRoutePointCircles 決定顯示圓形或標記）
   useEffect(() => {
     if (!mapInstanceRef.current || !window.google) return
-
-    drawRouteMarkers(routePoints, mapInstanceRef.current)
-  }, [routePoints])
+    drawRouteMarkers(routePoints, mapInstanceRef.current, showRoutePointCircles)
+  }, [routePoints, showRoutePointCircles])
 
   /**
    * 清除所有處理過的點位標記
@@ -488,7 +572,7 @@ export default function SafetyMap({
     clearProcessedPointsMarkers()
 
     points.forEach((point) => {
-      // 根據是否重新定位到 CCTV 使用不同的顏色
+      // 所有處理過的點位都使用橙色
       const isRelocated = point.relocatedToCctv
       const marker = new window.google.maps.Marker({
         position: { lat: point.lat, lng: point.lng },
@@ -496,7 +580,7 @@ export default function SafetyMap({
         icon: {
           path: window.google.maps.SymbolPath.CIRCLE,
           scale: 7,
-          fillColor: isRelocated ? '#ff9343' : '#318ea0', // 橙色表示重新定位到 CCTV，藍色表示一般處理過的點位
+          fillColor: '#ff9343', // 橙色
           fillOpacity: 0.8,
           strokeColor: '#ffffff',
           strokeWeight: 2,

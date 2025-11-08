@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
+import { apiPost } from '../utils/api'
 
 // Google Maps API Key (首頁專用)
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDu0788Su8S96hJ_MDkgfqYt_6Kbpa92wI'
@@ -21,9 +22,9 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
     console.log('[HomeMap] loadGoogleMapsScript 開始，API Key:', apiKey.substring(0, 10) + '...')
     
-    // 如果 window.google 已經存在，直接使用（避免重複加載）
-    if (window.google && window.google.maps) {
-      console.log('[HomeMap] window.google 已存在，直接使用')
+    // 如果 window.google 已經存在，檢查 Map 構造函數是否可用
+    if (window.google && window.google.maps && window.google.maps.Map) {
+      console.log('[HomeMap] window.google 已存在，Map 構造函數可用，直接使用')
       resolve()
       return
     }
@@ -31,7 +32,7 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
     // 如果已經標記為加載中，等待加載完成
     if (window.__homeMapScriptLoaded === false) {
       const checkInterval = setInterval(() => {
-        if (window.google && window.google.maps) {
+        if (window.google && window.google.maps && window.google.maps.Map) {
           clearInterval(checkInterval)
           window.__homeMapScriptLoaded = true
           resolve()
@@ -46,9 +47,9 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
     // 檢查是否已經有相同 API key 的腳本
     const existingScript = document.querySelector(`script[src*="maps.googleapis.com/maps/api/js"]`)
     if (existingScript) {
-      // 等待現有腳本加載完成
+      // 等待現有腳本加載完成，確保 Map 構造函數可用
       const checkInterval = setInterval(() => {
-        if (window.google && window.google.maps) {
+        if (window.google && window.google.maps && window.google.maps.Map) {
           clearInterval(checkInterval)
           window.__homeMapScriptLoaded = true
           resolve()
@@ -64,11 +65,12 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
     script.defer = true
 
     script.onload = () => {
-      // 等待一小段時間確保 google 對象已初始化
+      // 等待一小段時間確保 google 對象和 Map 構造函數已初始化
       const checkInterval = setInterval(() => {
-        if (window.google && window.google.maps) {
+        if (window.google && window.google.maps && window.google.maps.Map) {
           clearInterval(checkInterval)
           window.__homeMapScriptLoaded = true
+          console.log('[HomeMap] Google Maps API 完全加載完成，Map 構造函數可用')
           resolve()
         }
       }, 50)
@@ -76,11 +78,13 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
       // 超時保護
       setTimeout(() => {
         clearInterval(checkInterval)
-        if (window.google && window.google.maps) {
+        if (window.google && window.google.maps && window.google.maps.Map) {
           window.__homeMapScriptLoaded = true
+          console.log('[HomeMap] Google Maps API 完全加載完成（超時檢查）')
           resolve()
         } else {
-          reject(new Error('Google Maps API loaded but google object not available'))
+          console.error('[HomeMap] Google Maps API 加載超時，Map 構造函數不可用')
+          reject(new Error('Google Maps API loaded but Map constructor not available'))
         }
       }, 5000)
     }
@@ -100,7 +104,28 @@ export interface HomeMapHandle {
   isQuerying: () => boolean
 }
 
-const HomeMap = forwardRef<HomeMapHandle>((_props, ref) => {
+interface ClusterInfo {
+  cluster_id: number
+  point_count: number
+  alpha: number
+  lat: number
+  lng: number
+  risk_level: string
+  type_counts?: {
+    light?: number
+    few?: number
+    monitor?: number
+    dangerous?: number
+  }
+}
+
+interface HomeMapProps {
+  onDangerZonesData?: (data: any) => void
+  onClusterClick?: (cluster: ClusterInfo) => void
+}
+
+const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
+  const { onDangerZonesData, onClusterClick } = props || {}
   const mapRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -166,8 +191,17 @@ const HomeMap = forwardRef<HomeMapHandle>((_props, ref) => {
           return
         }
 
+        // 檢查 Map 構造函數是否可用
+        if (!window.google.maps.Map) {
+          console.error('[HomeMap] window.google.maps.Map 構造函數不可用')
+          setError('無法初始化地圖：Map 構造函數未準備好')
+          setLoading(false)
+          return
+        }
+
         console.log('[HomeMap] 開始創建地圖實例')
         console.log('[HomeMap] 容器尺寸:', mapRef.current.offsetWidth, 'x', mapRef.current.offsetHeight)
+        console.log('[HomeMap] Map 構造函數類型:', typeof window.google.maps.Map)
 
         // 創建地圖
         const newMap = new window.google.maps.Map(mapRef.current, {
@@ -182,51 +216,69 @@ const HomeMap = forwardRef<HomeMapHandle>((_props, ref) => {
         mapInstanceRef.current = newMap
         console.log('[HomeMap] 地圖實例創建成功:', newMap)
 
-        // 創建資訊視窗
-        infoWindowRef.current = new window.google.maps.InfoWindow()
+        // 等待地圖完全初始化後再進行後續操作
+        // 使用 idle 事件確保地圖完全加載
+        window.google.maps.event.addListenerOnce(newMap, 'idle', () => {
+          console.log('[HomeMap] 地圖完全加載完成，開始初始化其他組件')
+          
+          try {
+            // 創建資訊視窗
+            infoWindowRef.current = new window.google.maps.InfoWindow()
 
-        // 獲取初始中心點
-        const initialCenter = newMap.getCenter()
-        if (initialCenter) {
-          setMapCenter({
-            lat: initialCenter.lat(),
-            lng: initialCenter.lng(),
-          })
-          console.log('[HomeMap] 初始地圖中心點:', {
-            lat: initialCenter.lat(),
-            lng: initialCenter.lng(),
-          })
-        }
-
-        // 獲取初始縮放級別
-        const initialZoom = newMap.getZoom()
-        if (initialZoom !== undefined) {
-          setMapZoom(initialZoom)
-          console.log('[HomeMap] 初始地圖縮放級別:', initialZoom)
-        }
-
-        // 監聽地圖中心變化
-        window.google.maps.event.addListener(newMap, 'center_changed', () => {
-          const center = newMap.getCenter()
-          if (center) {
-            const centerCoords = {
-              lat: center.lat(),
-              lng: center.lng(),
+            // 獲取初始中心點
+            const initialCenter = newMap.getCenter()
+            if (initialCenter) {
+              setMapCenter({
+                lat: initialCenter.lat(),
+                lng: initialCenter.lng(),
+              })
+              console.log('[HomeMap] 初始地圖中心點:', {
+                lat: initialCenter.lat(),
+                lng: initialCenter.lng(),
+              })
             }
-            setMapCenter(centerCoords)
-            console.log('[HomeMap] 地圖中心點已更新:', centerCoords)
-          }
-        })
 
-        // 監聽地圖縮放變化
-        window.google.maps.event.addListener(newMap, 'zoom_changed', () => {
-          const zoom = newMap.getZoom()
-          if (zoom !== undefined) {
-            setMapZoom(zoom)
-            console.log('[HomeMap] 地圖縮放級別已更新:', zoom)
+            // 獲取初始縮放級別
+            const initialZoom = newMap.getZoom()
+            if (initialZoom !== undefined) {
+              setMapZoom(initialZoom)
+              console.log('[HomeMap] 初始地圖縮放級別:', initialZoom)
+            }
+
+            // 監聽地圖中心變化
+            window.google.maps.event.addListener(newMap, 'center_changed', () => {
+              try {
+                const center = newMap.getCenter()
+                if (center) {
+                  const centerCoords = {
+                    lat: center.lat(),
+                    lng: center.lng(),
+                  }
+                  setMapCenter(centerCoords)
+                  console.log('[HomeMap] 地圖中心點已更新:', centerCoords)
+                }
+              } catch (error) {
+                console.warn('[HomeMap] 獲取地圖中心點時出錯:', error)
+              }
+            })
+
+            // 監聽地圖縮放變化
+            window.google.maps.event.addListener(newMap, 'zoom_changed', () => {
+              try {
+                const zoom = newMap.getZoom()
+                if (zoom !== undefined) {
+                  setMapZoom(zoom)
+                  console.log('[HomeMap] 地圖縮放級別已更新:', zoom)
+                }
+                // 縮放變化時重新計算邊界距離
+                calculateMapBounds(newMap)
+              } catch (error) {
+                console.warn('[HomeMap] 處理縮放變化時出錯:', error)
+              }
+            })
+          } catch (error) {
+            console.error('[HomeMap] 初始化地圖組件時出錯:', error)
           }
-          // 縮放變化時重新計算邊界距離
-          calculateMapBounds(newMap)
         })
 
         // 計算地圖邊界和中心點到邊界的距離
@@ -387,7 +439,32 @@ const HomeMap = forwardRef<HomeMapHandle>((_props, ref) => {
   }
 
   /**
-   * 根據風險等級獲取顏色
+   * 根據 alpha 值獲取風險等級和對應的 SVG 圖標
+   * 最小級 (low): alpha <= 0.5 -> stupid-b-svgrepo-com.svg
+   * 第二級 (medium): 0.5 < alpha <= 1.0 -> injuried-svgrepo-com.svg
+   * 第三級 (high): alpha > 1.0 -> devil-svgrepo-com.svg
+   */
+  const getRiskLevelAndIcon = (alpha: number): { level: string; iconUrl: string } => {
+    if (alpha <= 0.5) {
+      return { 
+        level: 'low', 
+        iconUrl: '/svgs/stupid-b-svgrepo-com.svg' 
+      }
+    } else if (alpha <= 1.0) {
+      return { 
+        level: 'medium', 
+        iconUrl: '/svgs/injuried-svgrepo-com.svg' 
+      }
+    } else {
+      return { 
+        level: 'high', 
+        iconUrl: '/svgs/devil-svgrepo-com.svg' 
+      }
+    }
+  }
+
+  /**
+   * 根據風險等級獲取顏色（保留用於圓形範圍）
    */
   const getRiskColor = (riskLevel: string): { fill: string; stroke: string } => {
     switch (riskLevel) {
@@ -415,6 +492,12 @@ const HomeMap = forwardRef<HomeMapHandle>((_props, ref) => {
       lat: number
       lng: number
       risk_level: string
+      type_counts?: {
+        light?: number
+        few?: number
+        monitor?: number
+        dangerous?: number
+      }
     }>
     noise_points: Array<{
       id: number
@@ -450,45 +533,24 @@ const HomeMap = forwardRef<HomeMapHandle>((_props, ref) => {
     // 繪製群集
     data.clusters.forEach((cluster) => {
       const colors = getRiskColor(cluster.risk_level)
+      const { iconUrl } = getRiskLevelAndIcon(cluster.alpha)
 
-      // 繪製群集中心點標記
+      // 繪製群集中心點標記（使用 SVG 圖標）
       const marker = new window.google.maps.Marker({
         position: { lat: cluster.lat, lng: cluster.lng },
         map: mapInstance,
         icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 12,
-          fillColor: colors.fill,
-          fillOpacity: 0.9,
-          strokeColor: '#ffffff',
-          strokeWeight: 3,
+          url: iconUrl,
+          scaledSize: new window.google.maps.Size(48, 48),
+          anchor: new window.google.maps.Point(24, 24),
         },
-        title: `危險群集 #${cluster.cluster_id} (${cluster.risk_level})`,
+        title: `危險群集 #${cluster.cluster_id} (Alpha: ${cluster.alpha.toFixed(2)})`,
       })
 
-      // 添加資訊視窗
-      const infoContent = `
-        <div style="padding: 0.75rem; min-width: 220px;">
-          <h3 style="margin: 0 0 0.5rem 0; font-size: 16px; font-weight: 600; color: ${colors.fill};">危險群集 #${cluster.cluster_id}</h3>
-          <p style="margin: 4px 0; font-size: 14px; color: #475259;">
-            <strong>風險等級:</strong> <span style="color: ${colors.fill};">${cluster.risk_level}</span>
-          </p>
-          <p style="margin: 4px 0; font-size: 14px; color: #475259;">
-            <strong>點位數量:</strong> ${cluster.point_count}
-          </p>
-          <p style="margin: 4px 0; font-size: 14px; color: #475259;">
-            <strong>Alpha 值:</strong> ${cluster.alpha.toFixed(2)}
-          </p>
-          <p style="margin: 4px 0; font-size: 12px; color: #475259;">
-            位置: (${cluster.lat.toFixed(6)}, ${cluster.lng.toFixed(6)})
-          </p>
-        </div>
-      `
-
+      // 添加點擊事件，將資訊傳遞給父組件顯示在下方資訊欄
       marker.addListener('click', () => {
-        if (infoWindowRef.current) {
-          infoWindowRef.current.setContent(infoContent)
-          infoWindowRef.current.open(mapInstance, marker)
+        if (onClusterClick) {
+          onClusterClick(cluster)
         }
       })
 
@@ -565,29 +627,27 @@ const HomeMap = forwardRef<HomeMapHandle>((_props, ref) => {
 
     setQueryingDanger(true)
     try {
-      // 使用地圖中心點和邊界距離
+      // 使用地圖中心點和到左右邊框的距離
       const lat = mapCenter.lat
       const lng = mapCenter.lng
-      // 使用水平距離作為半徑（公尺）
+      // 使用水平距離作為半徑（公尺）- 這是到左右邊框的距離
       const radius = Math.round(mapBounds.distanceToEdge.horizontal)
       const eps = 500 // 固定值
       const minpoints = 3 // 固定值
 
       console.log('查詢危險區域參數:', { lat, lng, radius, eps, minpoints })
+      console.log('中心點座標:', { lat, lng })
+      console.log('到左右邊框的距離:', radius, '公尺')
 
-      const response = await fetch('https://ws10.csie.ntu.edu.tw:54443/api/danger-zones', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          lat,
-          lng,
-          radius,
-          eps,
-          minpoints,
-        }),
+      const response = await apiPost('/api/danger-zones', {
+        lat,
+        lng,
+        radius,
+        eps,
+        minpoints,
       })
+
+      console.log('API 回應狀態:', response.status, response.statusText)
 
       if (!response.ok) {
         throw new Error(`API 回應錯誤: ${response.statusText}`)
@@ -597,6 +657,11 @@ const HomeMap = forwardRef<HomeMapHandle>((_props, ref) => {
       console.log('危險區域查詢結果:', result)
 
       if (result.success && result.data) {
+        // 保存後端返回的數據
+        if (onDangerZonesData) {
+          onDangerZonesData(result.data)
+        }
+        
         // 繪製危險區域
         drawDangerZones(result.data)
         

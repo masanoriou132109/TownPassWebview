@@ -1,15 +1,101 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import './App.css'
 import DangerPage from './DangerPage'
 import UnsafeReportPage from './UnsafeReportPage'
+import DangerMapPage from './DangerMapPage'
+import ReportListPage from './ReportListPage'
+import SettingsPage from './SettingsPage'
 import HomeMap from './components/HomeMap'
+import HamburgerMenu from './components/HamburgerMenu'
 import type { HomeMapHandle } from './components/HomeMap'
+import { login, hasToken } from './utils/auth'
+import { useFlutterBridge } from './hooks/useFlutterBridge'
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<'home' | 'danger' | 'unsafe-report'>('home')
+  const [currentPage, setCurrentPage] = useState<'home' | 'danger' | 'unsafe-report' | 'danger-map' | 'report-list' | 'settings'>('home')
   const [showDangerMap, setShowDangerMap] = useState(false)
   const homeMapRef = useRef<HomeMapHandle>(null)
-  const [queryingDanger, setQueryingDanger] = useState(false)
+  const { lastReply, sendMessage, isAvailable } = useFlutterBridge()
+
+  // 处理从 Flutter 接收到的用户信息，并自动登录获取 JWT token
+  useEffect(() => {
+    if (!lastReply) {
+      return
+    }
+
+    // 处理使用者資訊回覆（参考 Test/frontend 的实现）
+    if (lastReply.name === 'userinfo' && typeof lastReply.data === 'object' && lastReply.data !== null) {
+      const data = lastReply.data as Record<string, unknown>
+      const id = String(data.id ?? '')
+      const idNo = String(data.idNo ?? '')
+      
+      if (id && idNo) {
+        console.log('[App] 收到使用者資訊，ID:', id)
+        
+        // 保存用户 ID 到 localStorage
+        try {
+          localStorage.setItem('userId', id)
+          console.log('[App] 用户 ID 已保存到 localStorage')
+        } catch (err) {
+          console.warn('[App] 保存用户 ID 失败:', err)
+        }
+        
+        // 如果已有 token，跳过登录
+        if (hasToken()) {
+          console.log('[App] 已存在 token，跳过自动登录')
+          return
+        }
+
+        // 使用接收到的 id 和 idNo 登录获取 JWT token
+        console.log('[App] 开始自动登录获取 JWT token...')
+        login(id, idNo).then((success) => {
+          if (success) {
+            console.log('[App] ✅ 自动登录成功，token 已保存')
+          } else {
+            console.warn('[App] ⚠️ 自动登录失败，部分功能可能无法使用')
+          }
+        })
+      }
+    }
+  }, [lastReply])
+
+  // 应用初始化时，如果 Flutter bridge 可用，自动请求用户信息
+  useEffect(() => {
+    if (!isAvailable) {
+      return
+    }
+
+    // 如果已有 token，跳过
+    if (hasToken()) {
+      console.log('[App] 已存在 token，跳过请求用户信息')
+      return
+    }
+
+    // 发送 userinfo 请求（参考 Test/frontend 的实现）
+    console.log('[App] 请求使用者資訊...')
+    sendMessage('userinfo', null)
+  }, [isAvailable, sendMessage])
+  
+  // 查詢此處危險狀態相關代碼（已移除按鈕，但保留代碼以便將來使用）
+  // const [queryingDanger, setQueryingDanger] = useState(false)
+  // const [canQuery, setCanQuery] = useState(false)
+
+  // 定期檢查是否可以查詢（因為 useImperativeHandle 可能不會觸發重新渲染）
+  // useEffect(() => {
+  //   if (!showDangerMap) {
+  //     setCanQuery(false)
+  //     return
+  //   }
+  //   
+  //   const checkInterval = setInterval(() => {
+  //     if (homeMapRef.current) {
+  //       const can = homeMapRef.current.canQuery()
+  //       setCanQuery(can)
+  //     }
+  //   }, 500)
+
+  //   return () => clearInterval(checkInterval)
+  // }, [showDangerMap])
 
   const handleNavigateToDanger = () => {
     setCurrentPage('danger')
@@ -31,19 +117,32 @@ function App() {
     setShowDangerMap(false)
   }
 
-  const handleQueryDangerZones = async () => {
-    if (!homeMapRef.current) return
-    if (!homeMapRef.current.canQuery()) {
-      alert('地圖尚未載入完成，請稍候再試')
-      return
-    }
-    setQueryingDanger(true)
-    try {
-      await homeMapRef.current.queryDangerZones()
-    } finally {
-      setQueryingDanger(false)
-    }
+  const handleMenuShowDangerMap = () => {
+    setCurrentPage('danger-map')
   }
+
+  const handleNavigateToReportList = () => {
+    setCurrentPage('report-list')
+  }
+
+  const handleNavigateToSettings = () => {
+    setCurrentPage('settings')
+  }
+
+  // 查詢此處危險狀態功能（已移除按鈕，但保留代碼以便將來使用）
+  // const handleQueryDangerZones = async () => {
+  //   if (!homeMapRef.current) return
+  //   if (!homeMapRef.current.canQuery()) {
+  //     alert('地圖尚未載入完成，請稍候再試')
+  //     return
+  //   }
+  //   setQueryingDanger(true)
+  //   try {
+  //     await homeMapRef.current.queryDangerZones()
+  //   } finally {
+  //     setQueryingDanger(false)
+  //   }
+  // }
 
   return (
     <div className="app-container">
@@ -53,68 +152,37 @@ function App() {
         <header className="app__header">
           <button type="button" className="app__nav-btn" aria-label="返回">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M15 6L9 12L15 18" stroke="#475259" strokeWidth="2" strokeLinecap="round" />
+              <path d="M15 6L9 12L15 18" stroke="white" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
           <span className="app__headline">危險通報</span>
-          <button type="button" className="app__nav-btn" aria-label="更多功能">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5 7H19" stroke="#475259" strokeWidth="2" strokeLinecap="round" />
-              <path d="M5 12H19" stroke="#475259" strokeWidth="2" strokeLinecap="round" />
-              <path d="M5 17H19" stroke="#475259" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
+          <HamburgerMenu 
+            onShowDangerMap={handleMenuShowDangerMap}
+            onShowReportList={handleNavigateToReportList}
+            onShowSettings={handleNavigateToSettings}
+          />
         </header>
 
         <main className="app__content" aria-label="危險通報操作">
           {showDangerMap && (
             <>
-              <div className="app__search-container">
-                <input
-                  type="search"
-                  className="app__search"
-                  placeholder="搜尋地點..."
-                  aria-label="搜尋地點"
-                />
-                <svg
-                  className="app__search-icon"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z"
-                    stroke="#475259"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M21 21L16.65 16.65"
-                    stroke="#475259"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-
               <div className="app__map-container">
                 <HomeMap ref={homeMapRef} />
               </div>
 
+              {/* 查詢此處危險狀態按鈕（已移除，代碼保留在下方註釋中） */}
+              {/* 
               <div className="app__query-danger-btn-container">
                 <button
                   type="button"
                   className="app__query-danger-btn"
                   onClick={handleQueryDangerZones}
-                  disabled={queryingDanger || !homeMapRef.current?.canQuery()}
+                  disabled={queryingDanger || !canQuery}
                 >
                   {queryingDanger ? '查詢中...' : '查詢此處危險狀態'}
                 </button>
               </div>
+              */}
 
               <div className="app__hide-map-btn-container">
                 <button
@@ -135,7 +203,7 @@ function App() {
                 className="app__show-map-btn"
                 onClick={handleShowDangerMap}
               >
-                顯示危險地圖
+                快速查看危險地圖
               </button>
             </div>
           )}
@@ -228,19 +296,60 @@ function App() {
           </div>
         </main>
 
-        <footer className="app__footer">撥打 1999 專線 · SafeTrace 測試版</footer>
+        <footer className="app__footer">本服務僅供非緊急事件使用，緊急狀態請撥打119</footer>
       </div>
 
       <div
         className={`danger-page-wrapper ${currentPage === 'danger' ? 'danger-page-wrapper--active' : ''}`}
       >
-        <DangerPage onBack={handleBack} />
+        <DangerPage 
+          onBack={handleBack} 
+          onNavigateToDangerMap={handleMenuShowDangerMap}
+          onNavigateToReportList={handleNavigateToReportList}
+          onNavigateToSettings={handleNavigateToSettings}
+        />
       </div>
 
       <div
         className={`unsafe-report-page-wrapper ${currentPage === 'unsafe-report' ? 'unsafe-report-page-wrapper--active' : ''}`}
       >
-        <UnsafeReportPage onBack={handleBack} />
+        <UnsafeReportPage 
+          onBack={handleBack} 
+          onNavigateToDangerMap={handleMenuShowDangerMap}
+          onNavigateToReportList={handleNavigateToReportList}
+          onNavigateToSettings={handleNavigateToSettings}
+        />
+      </div>
+
+      <div
+        className={`danger-map-page-wrapper ${currentPage === 'danger-map' ? 'danger-map-page-wrapper--active' : ''}`}
+      >
+        <DangerMapPage 
+          onBack={handleBack}
+          onNavigateToDangerMap={handleMenuShowDangerMap}
+          onNavigateToReportList={handleNavigateToReportList}
+          onNavigateToSettings={handleNavigateToSettings}
+        />
+      </div>
+
+      <div
+        className={`report-list-page-wrapper ${currentPage === 'report-list' ? 'report-list-page-wrapper--active' : ''}`}
+      >
+        <ReportListPage 
+          onBack={handleBack} 
+          onNavigateToDangerMap={handleMenuShowDangerMap}
+          onNavigateToSettings={handleNavigateToSettings}
+        />
+      </div>
+
+      <div
+        className={`settings-page-wrapper ${currentPage === 'settings' ? 'settings-page-wrapper--active' : ''}`}
+      >
+        <SettingsPage 
+          onBack={handleBack} 
+          onNavigateToDangerMap={handleMenuShowDangerMap}
+          onNavigateToReportList={handleNavigateToReportList}
+        />
       </div>
     </div>
   )

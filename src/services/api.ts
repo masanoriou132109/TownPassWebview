@@ -1,7 +1,5 @@
-// API 基礎 URL，根據實際後端地址調整
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://ws10.csie.ntu.edu.tw:54443'
-// API Key（如果需要）
-const API_KEY = import.meta.env.VITE_API_KEY || ''
+// 使用统一的 API 工具函数（自动添加 JWT token）
+import { apiGet } from '../utils/api'
 
 /**
  * 安全點位接口（匹配後端 API 回應格式）
@@ -38,18 +36,7 @@ export interface PlaceResponse {
   message: string
 }
 
-/**
- * 構建請求頭
- */
-function getHeaders(): HeadersInit {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  }
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY
-  }
-  return headers
-}
+// 注意：不再需要 getHeaders()，因为 apiGet 会自动添加 JWT token
 
 /**
  * Health Check API
@@ -60,9 +47,7 @@ function getHeaders(): HeadersInit {
  * ```
  */
 export async function healthCheck(): Promise<{ status: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/health`, {
-    headers: getHeaders(),
-  })
+  const response = await apiGet('/api/health')
   if (!response.ok) {
     throw new Error('Health check failed')
   }
@@ -108,12 +93,10 @@ export async function getPlaces(
     params.append('radius', radius.toString())
   }
 
-  const url = `${API_BASE_URL}/api/places${params.toString() ? `?${params.toString()}` : ''}`
+  const endpoint = `/api/places${params.toString() ? `?${params.toString()}` : ''}`
   
   try {
-    const response = await fetch(url, {
-      headers: getHeaders(),
-    })
+    const response = await apiGet(endpoint)
 
     if (!response.ok) {
       throw new Error(`後端 API 回應錯誤: ${response.statusText}`)
@@ -146,12 +129,10 @@ export async function getPlaces(
  * ```
  */
 export async function getPlaceById(id: string): Promise<Place> {
-  const url = `${API_BASE_URL}/api/places/${id}`
+  const endpoint = `/api/places/${id}`
   
   try {
-    const response = await fetch(url, {
-      headers: getHeaders(),
-    })
+    const response = await apiGet(endpoint)
 
     if (!response.ok) {
       throw new Error(`後端 API 回應錯誤: ${response.statusText}`)

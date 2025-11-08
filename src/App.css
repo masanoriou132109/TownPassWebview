@@ -35,8 +35,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem;
-  background: var(--tp-surface);
-  border-bottom: 1px solid var(--tp-line);
+  background: #5ab4c5;
+  border-bottom: none;
 }
 
 .app__nav-btn {
@@ -54,10 +54,14 @@
   height: 1.5rem;
 }
 
+.app__nav-btn svg path {
+  stroke: white;
+}
+
 .app__headline {
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--tp-deep);
+  color: white;
   margin: 0;
 }
 
@@ -70,6 +74,10 @@
   position: relative;
   padding-bottom: 8.75rem;
   /* 為固定按鈕留出空間 */
+}
+
+.app__content:has(.app__map-container) {
+  padding-top: 4rem;
 }
 
 .app__search-container {
@@ -139,20 +147,17 @@
     box-shadow 160ms ease;
 }
 
-.app__query-danger-btn:hover:not(:disabled) {
-  transform: translateY(-0.0625rem);
-  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.2);
-  background: var(--tp-primary-strong);
-}
-
 .app__query-danger-btn:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.98);
+  background: var(--tp-primary);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.2);
 }
 
 .app__query-danger-btn:focus-visible {
   outline: 3px solid rgba(90, 180, 197, 0.3);
   outline-offset: 0.25rem;
 }
+
 
 .app__query-danger-btn:disabled {
   opacity: 0.6;
@@ -258,7 +263,7 @@
   padding: 0.875rem 1.25rem;
   border: none;
   border-radius: 12px;
-  background: var(--tp-primary);
+  background: #5ab4c5;
   color: white;
   font-size: 1rem;
   font-weight: 600;
@@ -270,7 +275,7 @@
 .app__show-map-btn:hover {
   transform: translateY(-0.0625rem);
   box-shadow: 0 0.125rem 0.5rem rgba(12, 25, 33, 0.1);
-  background: var(--tp-primary-strong);
+  background: #318ea0;
 }
 
 .app__show-map-btn:active {
@@ -314,18 +319,20 @@
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
   transition: background-color 160ms ease, transform 160ms ease,
     box-shadow 160ms ease;
 }
 
 .app__action-btn:hover {
   transform: translateY(-0.125rem);
-  box-shadow: 0 0.25rem 0.75rem rgba(12, 25, 33, 0.1);
+  box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.2);
   background: var(--tp-layer);
 }
 
 .app__action-btn:active {
   transform: translateY(0);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.15);
 }
 
 .app__action-btn:focus-visible {
@@ -377,4 +384,158 @@
 
 .unsafe-report-page-wrapper--active {
   transform: translateX(0);
+}
+
+/* 危險地圖頁面 */
+.danger-map-page-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: var(--tp-layer);
+  transform: translateX(100%);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+}
+
+.danger-map-page-wrapper--active {
+  transform: translateX(0);
+}
+
+/* 回報列表頁面 */
+.report-list-page-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 100vh;
+  transform: translateX(100%);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+}
+
+.report-list-page-wrapper--active {
+  transform: translateX(0);
+}
+
+/* 使用設定頁面 */
+.settings-page-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 100vh;
+  transform: translateX(100%);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+}
+
+.settings-page-wrapper--active {
+  transform: translateX(0);
+}
+
+/* 漢堡選單遮罩層 */
+.app__menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  transition: opacity 0.5s ease;
+}
+
+/* 漢堡選單 */
+.app__menu {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 70%;
+  max-width: 18.375rem;
+  height: 100vh;
+  background: var(--tp-surface);
+  z-index: 101;
+  transform: translateX(100%);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -0.25rem 0 1rem rgba(0, 0, 0, 0.15);
+}
+
+.app__menu--active {
+  transform: translateX(0);
+}
+
+.app__menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--tp-surface);
+  border-bottom: 1px solid var(--tp-line);
+}
+
+.app__menu-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--tp-deep);
+}
+
+.app__menu-close-btn {
+  border: none;
+  background: transparent;
+  padding: 0.4rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app__menu-close-btn svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.app__menu-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
+  overflow-y: auto;
+}
+
+.app__menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border: none;
+  background: transparent;
+  color: var(--tp-text);
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+  border-bottom: 1px solid var(--tp-layer);
+}
+
+.app__menu-item:hover {
+  background: var(--tp-layer);
+}
+
+.app__menu-item:active {
+  background: var(--tp-layer-strong);
+}
+
+.app__menu-item span {
+  flex: 1;
+}
+
+.app__menu-item svg {
+  flex-shrink: 0;
+  margin-left: 0.75rem;
+  opacity: 0.6;
 }
