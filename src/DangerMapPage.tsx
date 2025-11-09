@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react'
 import './DangerMapPage.css'
 import HomeMap from './components/HomeMap'
 import HamburgerMenu from './components/HamburgerMenu'
-import type { HomeMapHandle } from './components/HomeMap'
+import type { HomeMapHandle, NoisePointInfo } from './components/HomeMap'
 
 interface DangerMapPageProps {
   onBack: () => void
@@ -32,6 +32,7 @@ function DangerMapPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, 
   const [loading, setLoading] = useState(false)
   const [canQuery, setCanQuery] = useState(false)
   const [selectedCluster, setSelectedCluster] = useState<ClusterInfo | null>(null)
+  const [selectedNoisePoint, setSelectedNoisePoint] = useState<NoisePointInfo | null>(null)
 
   // 定期檢查是否可以查詢
   useEffect(() => {
@@ -56,8 +57,9 @@ function DangerMapPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, 
       return
     }
 
-    // 清除之前選中的群集資訊
+    // 清除之前選中的群集和噪音點資訊
     setSelectedCluster(null)
+    setSelectedNoisePoint(null)
 
     setLoading(true)
     try {
@@ -99,7 +101,14 @@ function DangerMapPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, 
           <HomeMap
             ref={homeMapRef}
             onDangerZonesData={setDangerZonesData}
-            onClusterClick={setSelectedCluster}
+            onClusterClick={(cluster) => {
+              setSelectedCluster(cluster)
+              setSelectedNoisePoint(null) // 清除噪音點選擇
+            }}
+            onNoisePointClick={(noisePoint) => {
+              setSelectedNoisePoint(noisePoint)
+              setSelectedCluster(null) // 清除群集選擇
+            }}
           />
           <button
             type="button"
@@ -157,9 +166,29 @@ function DangerMapPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, 
                 </div>
               )}
             </div>
+          ) : selectedNoisePoint ? (
+            <div className="danger-map-page__cluster-details">
+              <div className="danger-map-page__cluster-detail-row">
+                <span className="danger-map-page__cluster-detail-label">噪音點 ID:</span>
+                <span className="danger-map-page__cluster-detail-value">{selectedNoisePoint.id}</span>
+              </div>
+              <div className="danger-map-page__cluster-detail-row">
+                <span className="danger-map-page__cluster-detail-label">Alpha 值:</span>
+                <span className="danger-map-page__cluster-detail-value">{selectedNoisePoint.alpha.toFixed(2)}</span>
+              </div>
+              <div className="danger-map-page__cluster-detail-row">
+                <span className="danger-map-page__cluster-detail-label">位置:</span>
+                <span className="danger-map-page__cluster-detail-value danger-map-page__cluster-detail-value--coords">
+                  {selectedNoisePoint.lat.toFixed(6)}, {selectedNoisePoint.lng.toFixed(6)}
+                </span>
+              </div>
+              <p className="danger-map-page__cluster-info-empty" style={{ marginTop: '0.5rem' }}>
+                此點未形成群集，可能是偶發事件
+              </p>
+            </div>
           ) : (
             <div className="danger-map-page__cluster-info-empty">
-              <p>點擊地圖上的群集標記以查看詳細資訊</p>
+              <p>點擊地圖上的標記</p>
             </div>
           )}
         </div>

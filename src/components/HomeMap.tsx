@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 import { apiPost } from '../utils/api'
+import poisonedIcon from '../assets/svgs/poisoned-svgrepo-com.svg'
+import devilIcon from '../assets/svgs/devil-svgrepo-com.svg'
+import deadpanIcon from '../assets/svgs/deadpan-1-svgrepo-com.svg'
 
 // Google Maps API Key (首頁專用)
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDu0788Su8S96hJ_MDkgfqYt_6Kbpa92wI'
@@ -21,7 +24,7 @@ const DEFAULT_CENTER = { lat: 25.0375, lng: 121.5645 }
 function loadGoogleMapsScript(apiKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
     console.log('[HomeMap] loadGoogleMapsScript 開始，API Key:', apiKey.substring(0, 10) + '...')
-    
+
     // 如果 window.google 已經存在，檢查 Map 構造函數是否可用
     if (window.google && window.google.maps && window.google.maps.Map) {
       console.log('[HomeMap] window.google 已存在，Map 構造函數可用，直接使用')
@@ -74,7 +77,7 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
           resolve()
         }
       }, 50)
-      
+
       // 超時保護
       setTimeout(() => {
         clearInterval(checkInterval)
@@ -162,7 +165,7 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
     }
 
     console.log('[HomeMap] 開始初始化地圖，mapRef.current:', mapRef.current)
-    
+
     // 確保容器尺寸正確（CSS 已設置，這裡只是確認）
     if (mapRef.current) {
       const container = mapRef.current.closest('.app__map-container') as HTMLElement
@@ -177,14 +180,14 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
       mapRef.current.style.width = '100%'
       mapRef.current.style.height = '100%'
     }
-    
+
     console.log('[HomeMap] 容器尺寸:', mapRef.current?.offsetWidth, 'x', mapRef.current?.offsetHeight)
 
     // 使用傳統的 script 標籤方式加載（避免與 @googlemaps/js-api-loader 衝突）
     loadGoogleMapsScript(GOOGLE_MAPS_API_KEY)
       .then(() => {
         console.log('[HomeMap] Google Maps script 加載完成')
-        
+
         if (!mapRef.current) {
           console.error('[HomeMap] mapRef.current 在加載後變為 null')
           setError('無法初始化地圖：容器不存在')
@@ -228,7 +231,7 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
         // 使用 idle 事件確保地圖完全加載
         window.google.maps.event.addListenerOnce(newMap, 'idle', () => {
           console.log('[HomeMap] 地圖完全加載完成，開始初始化其他組件')
-          
+
           try {
             // 創建資訊視窗
             infoWindowRef.current = new window.google.maps.InfoWindow()
@@ -313,9 +316,9 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
             const a =
               Math.sin(dLat / 2) * Math.sin(dLat / 2) +
               Math.cos((lat1 * Math.PI) / 180) *
-                Math.cos((lat2 * Math.PI) / 180) *
-                Math.sin(dLng / 2) *
-                Math.sin(dLng / 2)
+              Math.cos((lat2 * Math.PI) / 180) *
+              Math.sin(dLng / 2) *
+              Math.sin(dLng / 2)
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
             return R * c
           }
@@ -367,11 +370,11 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
             console.log('[HomeMap] 觸發 resize 事件')
             console.log('[HomeMap] 當前容器尺寸:', mapRef.current.offsetWidth, 'x', mapRef.current.offsetHeight)
             window.google?.maps.event.trigger(mapInstanceRef.current, 'resize')
-            
-                  // 如果容器尺寸為 0，強制設置一個最小高度
-                  if (mapRef.current.offsetHeight === 0) {
-                    console.warn('[HomeMap] 容器高度為 0，嘗試設置最小高度')
-                    mapRef.current.style.minHeight = '378px'
+
+            // 如果容器尺寸為 0，強制設置一個最小高度
+            if (mapRef.current.offsetHeight === 0) {
+              console.warn('[HomeMap] 容器高度為 0，嘗試設置最小高度')
+              mapRef.current.style.minHeight = '378px'
               setTimeout(() => {
                 if (mapInstanceRef.current) {
                   window.google?.maps.event.trigger(mapInstanceRef.current, 'resize')
@@ -448,46 +451,23 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
 
   /**
    * 根據 alpha 值獲取風險等級和對應的 SVG 圖標
-   * 最小級 (low): alpha <= 0.5 -> stupid-b-svgrepo-com.svg
-   * 第二級 (medium): 0.5 < alpha <= 1.0 -> injuried-svgrepo-com.svg
-   * 第三級 (high): alpha > 1.0 -> devil-svgrepo-com.svg
+   * alpha < 0.5 -> poisoned-svgrepo-com.svg
+   * alpha >= 0.5 -> devil-svgrepo-com.svg
    */
   const getRiskLevelAndIcon = (alpha: number): { level: string; iconUrl: string } => {
-    if (alpha <= 0.5) {
-      return { 
-        level: 'low', 
-        iconUrl: '/svgs/stupid-b-svgrepo-com.svg' 
-      }
-    } else if (alpha <= 1.0) {
-      return { 
-        level: 'medium', 
-        iconUrl: '/svgs/injuried-svgrepo-com.svg' 
+    if (alpha < 0.5) {
+      return {
+        level: 'low',
+        iconUrl: poisonedIcon
       }
     } else {
-      return { 
-        level: 'high', 
-        iconUrl: '/svgs/devil-svgrepo-com.svg' 
+      return {
+        level: 'high',
+        iconUrl: devilIcon
       }
     }
   }
 
-  /**
-   * 根據風險等級獲取顏色（保留用於圓形範圍）
-   */
-  const getRiskColor = (riskLevel: string): { fill: string; stroke: string } => {
-    switch (riskLevel) {
-      case 'critical':
-        return { fill: '#d45251', stroke: '#b03d3c' } // 紅色 - 極高風險
-      case 'high':
-        return { fill: '#ff9343', stroke: '#e67e22' } // 橙色 - 高風險
-      case 'medium':
-        return { fill: '#F5BA4B', stroke: '#d4a03a' } // 黃色 - 中等風險
-      case 'low':
-        return { fill: '#5ab4c5', stroke: '#318ea0' } // 藍色 - 低風險
-      default:
-        return { fill: '#5ab4c5', stroke: '#318ea0' } // 預設藍色
-    }
-  }
 
   /**
    * 繪製危險區域
@@ -540,7 +520,6 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
 
     // 繪製群集
     data.clusters.forEach((cluster) => {
-      const colors = getRiskColor(cluster.risk_level)
       const { iconUrl } = getRiskLevelAndIcon(cluster.alpha)
 
       // 繪製群集中心點標記（使用 SVG 圖標）
@@ -549,8 +528,8 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
         map: mapInstance,
         icon: {
           url: iconUrl,
-          scaledSize: new window.google.maps.Size(48, 48),
-          anchor: new window.google.maps.Point(24, 24),
+          scaledSize: new window.google.maps.Size(29, 29), // 縮小40%：48 * 0.6 = 28.8 ≈ 29
+          anchor: new window.google.maps.Point(14.5, 14.5), // 調整anchor點
         },
         title: `危險群集 #${cluster.cluster_id} (Alpha: ${cluster.alpha.toFixed(2)})`,
       })
@@ -563,21 +542,6 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
       })
 
       dangerZoneMarkersRef.current.push(marker)
-
-      // 根據 alpha 值繪製圓形範圍（alpha 越大，圓形越大）
-      const radius = Math.max(100, Math.min(800, cluster.alpha * 150))
-      const circle = new window.google.maps.Circle({
-        center: { lat: cluster.lat, lng: cluster.lng },
-        radius: radius,
-        map: mapInstance,
-        fillColor: colors.fill,
-        fillOpacity: 0.2,
-        strokeColor: colors.stroke,
-        strokeOpacity: 0.6,
-        strokeWeight: 2,
-      })
-
-      dangerZoneCirclesRef.current.push(circle)
     })
 
     // 繪製噪音點
@@ -586,12 +550,9 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
         position: { lat: noisePoint.lat, lng: noisePoint.lng },
         map: mapInstance,
         icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 6,
-          fillColor: '#9ca3af', // 灰色 - 噪音點
-          fillOpacity: 0.7,
-          strokeColor: '#ffffff',
-          strokeWeight: 1,
+          url: deadpanIcon,
+          scaledSize: new window.google.maps.Size(29, 29), // 與群集標記相同大小
+          anchor: new window.google.maps.Point(14.5, 14.5),
         },
         title: `噪音點 #${noisePoint.id} (Alpha: ${noisePoint.alpha.toFixed(2)})`,
       })
@@ -629,7 +590,7 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
       const lng = mapCenter.lng
       // 使用水平距離作為半徑（公尺）- 這是到左右邊框的距離
       const radius = Math.round(mapBounds.distanceToEdge.horizontal)
-      const eps = 500 // 固定值
+      const eps = 30 // 固定值
       const minpoints = 3 // 固定值
 
       console.log('查詢危險區域參數:', { lat, lng, radius, eps, minpoints })
@@ -658,10 +619,10 @@ const HomeMap = forwardRef<HomeMapHandle, HomeMapProps>((props, ref) => {
         if (onDangerZonesData) {
           onDangerZonesData(result.data)
         }
-        
+
         // 繪製危險區域
         drawDangerZones(result.data)
-        
+
         // 顯示統計資訊
         const stats = result.data.statistics
         console.log('統計資訊:', {

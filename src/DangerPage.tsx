@@ -218,8 +218,6 @@ function DangerPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, onN
   // 用於顯示的數據（保留以備將來使用）
   const [, setFlutterRawData] = useState<any>(null)
   const [, setConvertedRoutePoints] = useState<RoutePointRequest[]>([])
-  const [backendSearchResponse, setBackendSearchResponse] = useState<RouteSearchResponse | ForwardSafePlaceResponse | null>(null)
-  const [backendPlanResponse, setBackendPlanResponse] = useState<RoutePlanResponse | null>(null)
   const [isForwardSafePlace, setIsForwardSafePlace] = useState(true) // 标记当前使用的是哪个 API
   // safePlace 目前未使用，但保留以備將來使用
   // const [safePlace, setSafePlace] = useState<{
@@ -335,6 +333,12 @@ function DangerPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, onN
 
     setIsForwardSafePlace(true) // 标记使用最近安全空間 API
     setLoading(true)
+    // 清空之前的數據
+    setRoutePolyline(null)
+    setRoutePoints([])
+    setSafePlaces([])
+    setCctvPlaces([])
+    setProcessedPoints([])
     try {
       // 先從 Flutter 獲取定位歷史
       if (isAvailable) {
@@ -432,9 +436,6 @@ function DangerPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, onN
         console.log('='.repeat(60))
         console.log('完整回應:', JSON.stringify(responseData, null, 2))
         
-        // 保存後端回傳的數據用於顯示
-        setBackendSearchResponse(responseData)
-        
         if (responseData.success && responseData.data) {
           // 轉換 points 格式（用於顯示，但不顯示 Circle）
           const convertedPoints: RoutePoint[] = responseData.data.points.map((p, idx) => ({
@@ -464,8 +465,16 @@ function DangerPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, onN
           
           // 提取路線折線
           if (responseData.data.route?.overview_polyline) {
-            setRoutePolyline(responseData.data.route.overview_polyline)
-            console.log('提取的路線 polyline 長度:', responseData.data.route.overview_polyline.length)
+            const polylineStr = responseData.data.route.overview_polyline
+            console.log('[DangerPage] 提取的路線 polyline:')
+            console.log('  - 長度:', polylineStr.length)
+            console.log('  - 前50字符:', polylineStr.substring(0, 50))
+            setRoutePolyline(polylineStr)
+            console.log('[DangerPage] ✅ routePolyline 已設置')
+          } else {
+            console.warn('[DangerPage] ⚠️ 回應中沒有 overview_polyline')
+            console.warn('[DangerPage] route 對象:', responseData.data.route)
+            setRoutePolyline(null)
           }
           
           // 新 API 沒有 processedPoints，清空
@@ -533,7 +542,6 @@ function DangerPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, onN
           console.log('[DangerPage] ✅ Route Search 回應數據')
           console.log('='.repeat(60))
           console.log('完整回應:', JSON.stringify(searchData, null, 2))
-          setBackendSearchResponse(searchData)
           if (searchData.success && searchData.data) {
             setRoutePoints(searchData.data.points || [])
             setSafePlaces(searchData.data.safePlaces || [])
@@ -561,7 +569,6 @@ function DangerPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, onN
           console.log('[DangerPage] ✅ Route Plan 回應數據')
           console.log('='.repeat(60))
           console.log('完整回應:', JSON.stringify(planData, null, 2))
-          setBackendPlanResponse(planData)
           if (planData.success && planData.data) {
             // 提取路線折線
             if (planData.data.route?.routes?.[0]?.overview_polyline?.points) {
@@ -682,39 +689,10 @@ function DangerPage({ onBack, onNavigateToDangerMap, onNavigateToReportList, onN
             cctvPlaces={cctvPlaces}
             routePolyline={routePolyline}
             processedPoints={processedPoints}
-            showRoutePointCircles={!isForwardSafePlace} // 最近安全空間不顯示半徑圓，原路安全空間顯示
+            showRoutePointCircles={false} // 不顯示半徑圓
           />
         </div>
       </main>
-
-      {/* 後端原始數據顯示區域 */}
-      {(backendSearchResponse || backendPlanResponse) && (
-        <div className="danger-page__backend-data">
-          <div className="danger-page__backend-data-header">
-            <span className="danger-page__backend-data-title">後端原始數據</span>
-          </div>
-          <div className="danger-page__backend-data-content">
-            {backendSearchResponse && (
-              <div className="danger-page__backend-data-section">
-                <div className="danger-page__backend-data-section-title">
-                  {isForwardSafePlace ? 'Forward Safe Place 回應:' : 'Route Search 回應:'}
-                </div>
-                <pre className="danger-page__backend-data-json">
-                  {JSON.stringify(backendSearchResponse, null, 2)}
-                </pre>
-              </div>
-            )}
-            {backendPlanResponse && (
-              <div className="danger-page__backend-data-section">
-                <div className="danger-page__backend-data-section-title">Route Plan 回應:</div>
-                <pre className="danger-page__backend-data-json">
-                  {JSON.stringify(backendPlanResponse, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       <div className="danger-page__actions">
         <button

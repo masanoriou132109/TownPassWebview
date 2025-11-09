@@ -510,7 +510,15 @@ export default function SafetyMap({
    * 繪製路線折線
    */
   const drawRoutePolyline = (polylineString: string, mapInstance: google.maps.Map | null) => {
-    if (!mapInstance || !window.google) return
+    if (!mapInstance || !window.google) {
+      console.warn('[SafetyMap] drawRoutePolyline: 地圖實例或 Google Maps 不可用')
+      return
+    }
+
+    if (!polylineString || polylineString.trim() === '') {
+      console.warn('[SafetyMap] drawRoutePolyline: polyline 字符串為空')
+      return
+    }
 
     clearRoutePolyline()
 
@@ -518,11 +526,23 @@ export default function SafetyMap({
       // 檢查 geometry.encoding 是否可用
       if (!window.google.maps.geometry || !window.google.maps.geometry.encoding || !window.google.maps.geometry.encoding.decodePath) {
         console.warn('[SafetyMap] geometry.encoding.decodePath 不可用，無法繪製路線')
+        console.warn('[SafetyMap] geometry 狀態:', {
+          hasGeometry: !!window.google.maps.geometry,
+          hasEncoding: !!(window.google.maps.geometry && window.google.maps.geometry.encoding),
+          hasDecodePath: !!(window.google.maps.geometry && window.google.maps.geometry.encoding && window.google.maps.geometry.encoding.decodePath),
+        })
         return
       }
 
+      console.log('[SafetyMap] 開始解碼 polyline，長度:', polylineString.length)
       // 解碼 polyline 字符串為座標點陣列
       const path = window.google.maps.geometry.encoding.decodePath(polylineString)
+      console.log('[SafetyMap] 解碼後的座標點數量:', path.length)
+
+      if (path.length === 0) {
+        console.warn('[SafetyMap] 解碼後的座標點為空，無法繪製路線')
+        return
+      }
 
       // 創建折線
       const polyline = new window.google.maps.Polyline({
@@ -535,6 +555,7 @@ export default function SafetyMap({
       })
 
       routePolylineRef.current = polyline
+      console.log('[SafetyMap] ✅ 路線折線已成功繪製到地圖上')
 
       // 調整地圖視圖以顯示整個路線
       const bounds = new window.google.maps.LatLngBounds()
@@ -542,8 +563,13 @@ export default function SafetyMap({
         bounds.extend(point)
       })
       mapInstance.fitBounds(bounds)
+      console.log('[SafetyMap] 地圖視圖已調整以顯示整個路線')
     } catch (err) {
-      console.error('繪製路線失敗:', err)
+      console.error('[SafetyMap] ❌ 繪製路線失敗:', err)
+      if (err instanceof Error) {
+        console.error('[SafetyMap] 錯誤訊息:', err.message)
+        console.error('[SafetyMap] 錯誤堆疊:', err.stack)
+      }
     }
   }
 
@@ -620,11 +646,30 @@ export default function SafetyMap({
 
   // 當路線 polyline 數據更新時，繪製路線
   useEffect(() => {
-    if (!mapInstanceRef.current || !window.google) return
+    if (!mapInstanceRef.current || !window.google) {
+      console.log('[SafetyMap] 地圖尚未初始化，無法繪製路線')
+      return
+    }
 
     if (routePolyline) {
+      console.log('[SafetyMap] 收到 routePolyline，準備繪製路線，長度:', routePolyline.length)
+      // 確保 geometry 庫已加載
+      if (!window.google.maps.geometry || !window.google.maps.geometry.encoding) {
+        console.warn('[SafetyMap] geometry.encoding 未加載，等待加載...')
+        // 等待一小段時間後重試
+        const timer = setTimeout(() => {
+          if (window.google.maps.geometry && window.google.maps.geometry.encoding) {
+            console.log('[SafetyMap] geometry.encoding 已加載，開始繪製路線')
+            drawRoutePolyline(routePolyline, mapInstanceRef.current)
+          } else {
+            console.error('[SafetyMap] geometry.encoding 仍未加載，無法繪製路線')
+          }
+        }, 500)
+        return () => clearTimeout(timer)
+      }
       drawRoutePolyline(routePolyline, mapInstanceRef.current)
     } else {
+      console.log('[SafetyMap] routePolyline 為空，清除路線')
       clearRoutePolyline()
     }
   }, [routePolyline])

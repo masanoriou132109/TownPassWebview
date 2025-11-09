@@ -289,16 +289,17 @@
 
 .app__buttons {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 5rem;
   padding: 1rem;
   flex-shrink: 0;
   position: fixed;
-  bottom: 3.75rem;
-  /* 在頁尾上方 */
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   width: 100%;
-  max-width: 26.25rem;
+  max-width: 24rem;
   z-index: 10;
   box-sizing: border-box;
   background: var(--tp-layer);
@@ -306,7 +307,8 @@
 }
 
 .app__action-btn {
-  flex: 1;
+  width: 100%;
+  max-width: 20rem;
   display: flex;
   flex-direction: column;
   align-items: center;

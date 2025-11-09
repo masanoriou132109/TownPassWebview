@@ -5,9 +5,10 @@ interface HamburgerMenuProps {
   onShowDangerMap?: () => void
   onShowReportList?: () => void
   onShowSettings?: () => void
+  onExportEvidence?: () => void
 }
 
-export default function HamburgerMenu({ onShowDangerMap, onShowReportList, onShowSettings }: HamburgerMenuProps) {
+export default function HamburgerMenu({ onShowReportList, onShowSettings, onExportEvidence }: HamburgerMenuProps) {
   const [showMenu, setShowMenu] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -18,13 +19,6 @@ export default function HamburgerMenu({ onShowDangerMap, onShowReportList, onSho
 
   const handleCloseMenu = () => {
     setShowMenu(false)
-  }
-
-  const handleMenuShowDangerMap = () => {
-    setShowMenu(false)
-    if (onShowDangerMap) {
-      onShowDangerMap()
-    }
   }
 
   const handleMenuShowReportList = () => {
@@ -38,6 +32,13 @@ export default function HamburgerMenu({ onShowDangerMap, onShowReportList, onSho
     setShowMenu(false)
     if (onShowSettings) {
       onShowSettings()
+    }
+  }
+
+  const handleMenuExportEvidence = () => {
+    setShowMenu(false)
+    if (onExportEvidence) {
+      onExportEvidence()
     }
   }
 
@@ -101,18 +102,6 @@ export default function HamburgerMenu({ onShowDangerMap, onShowReportList, onSho
           </button>
         </div>
         <nav className="hamburger-menu__nav">
-          {onShowDangerMap && (
-            <button
-              type="button"
-              className="hamburger-menu__item"
-              onClick={handleMenuShowDangerMap}
-            >
-              <span>查看危險地圖</span>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 18L15 12L9 6" stroke="#475259" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </button>
-          )}
           {onShowReportList && (
             <button
               type="button"
@@ -128,7 +117,7 @@ export default function HamburgerMenu({ onShowDangerMap, onShowReportList, onSho
           <button
             type="button"
             className="hamburger-menu__item"
-            onClick={handleCloseMenu}
+            onClick={handleMenuExportEvidence}
           >
             <span>匯出證據</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

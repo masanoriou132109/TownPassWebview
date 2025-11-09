@@ -1,23 +1,34 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import DangerPage from './DangerPage'
 import UnsafeReportPage from './UnsafeReportPage'
 import DangerMapPage from './DangerMapPage'
 import ReportListPage from './ReportListPage'
 import SettingsPage from './SettingsPage'
-import HomeMap from './components/HomeMap'
 import HamburgerMenu from './components/HamburgerMenu'
-import type { HomeMapHandle } from './components/HomeMap'
 import { login, hasToken } from './utils/auth'
 import { useFlutterBridge } from './hooks/useFlutterBridge'
+import { apiPost } from './utils/api'
+import MapIcon from './assets/svgs/type=map.svg'
+
+interface LocationHistoryEntry {
+  latitude: number
+  longitude: number
+  capturedAt?: string
+}
+
+interface EvidencePoint {
+  id: number
+  lat: number
+  lng: number
+  time: string
+}
 
 function App() {
   const [currentPage, setCurrentPage] = useState<'home' | 'danger' | 'unsafe-report' | 'danger-map' | 'report-list' | 'settings'>('home')
-  const [showDangerMap, setShowDangerMap] = useState(false)
-  const homeMapRef = useRef<HomeMapHandle>(null)
-  const [canQuery, setCanQuery] = useState(false)
-  const [queryingDanger, setQueryingDanger] = useState(false)
   const { lastReply, sendMessage, isAvailable } = useFlutterBridge()
+  const exportingEvidenceRef = useRef(false)
+  const exportTimeoutRef = useRef<number | null>(null)
 
   // 处理从 Flutter 接收到的用户信息，并自动登录获取 JWT token
   useEffect(() => {
@@ -30,10 +41,10 @@ function App() {
       const data = lastReply.data as Record<string, unknown>
       const id = String(data.id ?? '')
       const idNo = String(data.idNo ?? '')
-      
+
       if (id && idNo) {
         console.log('[App] 收到使用者資訊，ID:', id)
-        
+
         // 保存用户 ID 到 localStorage
         try {
           localStorage.setItem('userId', id)
@@ -41,7 +52,7 @@ function App() {
         } catch (err) {
           console.warn('[App] 保存用户 ID 失败:', err)
         }
-        
+
         // 如果已有 token，跳过登录
         if (hasToken()) {
           console.log('[App] 已存在 token，跳过自动登录')
@@ -77,48 +88,6 @@ function App() {
     console.log('[App] 请求使用者資訊...')
     sendMessage('userinfo', null)
   }, [isAvailable, sendMessage])
-  
-  // 定期檢查是否可以查詢（因為 useImperativeHandle 可能不會觸發重新渲染）
-  useEffect(() => {
-    if (!showDangerMap) {
-      setCanQuery(false)
-      return
-    }
-    
-    const checkInterval = setInterval(() => {
-      if (homeMapRef.current) {
-        const can = homeMapRef.current.canQuery()
-        setCanQuery(can)
-      }
-    }, 500)
-
-    return () => clearInterval(checkInterval)
-  }, [showDangerMap])
-
-  // 當地圖顯示且可以查詢時，自動查詢危險區域
-  useEffect(() => {
-    if (!showDangerMap || !canQuery || queryingDanger) {
-      return
-    }
-
-    // 等待一小段時間確保地圖完全渲染
-    const timer = setTimeout(async () => {
-      if (homeMapRef.current && homeMapRef.current.canQuery()) {
-        console.log('[App] 自動查詢危險區域...')
-        setQueryingDanger(true)
-        try {
-          await homeMapRef.current.queryDangerZones()
-          console.log('[App] ✅ 危險區域查詢完成')
-        } catch (error) {
-          console.error('[App] ❌ 查詢危險區域失敗:', error)
-        } finally {
-          setQueryingDanger(false)
-        }
-      }
-    }, 1000) // 等待 1 秒確保地圖完全加載
-
-    return () => clearTimeout(timer)
-  }, [showDangerMap, canQuery])
 
   const handleNavigateToDanger = () => {
     setCurrentPage('danger')
@@ -130,16 +99,6 @@ function App() {
 
   const handleBack = () => {
     setCurrentPage('home')
-  }
-
-  const handleShowDangerMap = () => {
-    console.log('[App] 顯示危險地圖')
-    setShowDangerMap(true)
-    // 注意：實際查詢會在 useEffect 中自動觸發，當 canQuery 變為 true 時
-  }
-
-  const handleHideDangerMap = () => {
-    setShowDangerMap(false)
   }
 
   const handleMenuShowDangerMap = () => {
@@ -154,20 +113,186 @@ function App() {
     setCurrentPage('settings')
   }
 
-  // 查詢此處危險狀態功能（已移除按鈕，但保留代碼以便將來使用）
-  // const handleQueryDangerZones = async () => {
-  //   if (!homeMapRef.current) return
-  //   if (!homeMapRef.current.canQuery()) {
-  //     alert('地圖尚未載入完成，請稍候再試')
-  //     return
-  //   }
-  //   setQueryingDanger(true)
-  //   try {
-  //     await homeMapRef.current.queryDangerZones()
-  //   } finally {
-  //     setQueryingDanger(false)
-  //   }
-  // }
+  /**
+   * 轉換位置歷史為證據點位格式
+   */
+  const convertLocationHistoryToEvidencePoints = (
+    locationHistory: LocationHistoryEntry[]
+  ): EvidencePoint[] => {
+    if (!locationHistory || locationHistory.length === 0) {
+      return []
+    }
+
+    // 按時間排序（從舊到新）
+    const sorted = [...locationHistory].sort((a, b) => {
+      const timeA = a.capturedAt ? new Date(a.capturedAt).getTime() : 0
+      const timeB = b.capturedAt ? new Date(b.capturedAt).getTime() : 0
+      return timeA - timeB
+    })
+
+    // 取最後10個位置
+    const selectedPoints = sorted.length > 10 ? sorted.slice(-10) : sorted
+
+    // 轉換成證據點位格式
+    // 時間格式：後端要求的格式為 2025-11-08T05:25:00:000000（微秒精度，使用冒號分隔，無 'Z' 後綴）
+    return selectedPoints.map((entry, index) => {
+      let timeStr = entry.capturedAt || new Date().toISOString()
+
+      // 移除 'Z' 後綴（如果存在）
+      if (timeStr.endsWith('Z')) {
+        timeStr = timeStr.slice(0, -1)
+      }
+
+      // 解析時間字符串
+      // Flutter 可能提供的格式：
+      // - 2025-11-08T05:25:00.000000 (ISO 格式，點號分隔)
+      // - 2025-11-08T05:25:00.123 (毫秒精度)
+      // - 2025-11-08T05:25:00 (無小數部分)
+      const timeMatch = timeStr.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d+)?$/)
+
+      if (timeMatch) {
+        const baseTime = timeMatch[1] // 基礎時間部分：2025-11-08T05:25:00
+        const fractionalPart = timeMatch[2] || '' // 小數部分（包含點號）：.123 或 .000000
+
+        // 提取小數點後的數字，並確保為 6 位數（微秒精度）
+        const microseconds = fractionalPart.slice(1).padEnd(6, '0').slice(0, 6)
+        // 後端要求使用冒號分隔：2025-11-08T05:25:00:000000
+        timeStr = `${baseTime}:${microseconds}`
+      } else {
+        // 如果格式不匹配，使用 Date 對象重新格式化
+        const date = new Date(entry.capturedAt || new Date())
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+        const seconds = String(date.getSeconds()).padStart(2, '0')
+        // 後端要求使用冒號分隔：2025-11-08T05:25:00:000000
+        timeStr = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}:000000`
+      }
+
+      return {
+        id: index, // ID 從 0 開始，範圍 0~9
+        lat: entry.latitude,
+        lng: entry.longitude,
+        time: timeStr,
+      }
+    })
+  }
+
+  /**
+   * 處理匯出證據
+   */
+  const handleExportEvidence = async () => {
+    console.log('='.repeat(60))
+    console.log('[App] 🚀 開始匯出證據')
+    console.log('='.repeat(60))
+    console.log('Flutter Bridge 可用:', isAvailable)
+
+    // 防止重复点击
+    if (exportingEvidenceRef.current) {
+      console.warn('[App] ⚠️ 匯出證據正在進行中，請稍候...')
+      alert('匯出證據正在進行中，請稍候...')
+      return
+    }
+
+    if (!isAvailable) {
+      alert('無法連接到 Flutter，無法匯出證據')
+      return
+    }
+
+    exportingEvidenceRef.current = true
+
+    // 設置超時處理（30秒）
+    exportTimeoutRef.current = setTimeout(() => {
+      if (exportingEvidenceRef.current) {
+        console.error('[App] ❌ 匯出證據超時：Flutter 未在 30 秒內回覆')
+        alert('匯出證據超時，請稍後再試')
+        exportingEvidenceRef.current = false
+        exportTimeoutRef.current = null
+      }
+    }, 30000)
+
+    console.log('[App] 📤 向 Flutter 發送 location_history 請求（limit: 10）...')
+    sendMessage('location_history', { minutes: 30, limit: 10 })
+  }
+
+  /**
+   * 監聽 Flutter 回傳的定位歷史數據（用於匯出證據）
+   */
+  useEffect(() => {
+    // 只有在匯出證據流程中才處理
+    if (!exportingEvidenceRef.current) {
+      return
+    }
+
+    // 檢查是否是 location_history 回覆
+    if (lastReply?.name === 'location_history' && Array.isArray(lastReply.data)) {
+      console.log('='.repeat(60))
+      console.log('[App] 📥 收到 Flutter 定位歷史數據（用於匯出證據）')
+      console.log('='.repeat(60))
+
+      // 清除超時計時器
+      if (exportTimeoutRef.current) {
+        clearTimeout(exportTimeoutRef.current)
+        exportTimeoutRef.current = null
+      }
+
+      const locationHistory = lastReply.data as LocationHistoryEntry[]
+      console.log('位置歷史數量:', locationHistory.length)
+
+      // 轉換成證據點位格式
+      const evidencePoints = convertLocationHistoryToEvidencePoints(locationHistory)
+      console.log('轉換後的證據點位:', evidencePoints)
+      console.log('證據點位數量:', evidencePoints.length)
+
+      // 檢查數據有效性
+      if (evidencePoints.length === 0) {
+        console.warn('[App] ⚠️ 證據點位為空，無法匯出')
+        alert('沒有可匯出的位置數據，請確認定位權限已開啟')
+        exportingEvidenceRef.current = false
+        return
+      }
+
+      // 發送到後端
+      const sendEvidenceToBackend = async () => {
+        try {
+          console.log('[App] 📤 發送證據到後端 (route/plan)...')
+          const response = await apiPost('/api/route/plan', {
+            points: evidencePoints,
+          })
+
+          console.log('[App] 📥 後端回應狀態:', response.status, response.statusText)
+
+          if (response.ok) {
+            console.log('[App] ✅ 證據匯出成功')
+            const pointCount = evidencePoints.length
+            alert(`✅ 證據匯出成功！\n\n已成功匯出 ${pointCount} 個位置點位到後端。`)
+          } else {
+            const errorText = await response.text()
+            console.error('[App] ❌ 證據匯出失敗:', errorText)
+            alert('證據匯出失敗，請稍後再試')
+          }
+        } catch (error) {
+          console.error('[App] ❌ 發送證據到後端時發生錯誤:', error)
+          alert('發送證據時發生錯誤，請稍後再試')
+        } finally {
+          exportingEvidenceRef.current = false
+        }
+      }
+
+      sendEvidenceToBackend()
+    }
+  }, [lastReply])
+
+  // 清理超時計時器
+  useEffect(() => {
+    return () => {
+      if (exportTimeoutRef.current) {
+        clearTimeout(exportTimeoutRef.current)
+      }
+    }
+  }, [])
 
   return (
     <div className="app-container">
@@ -181,68 +306,14 @@ function App() {
             </svg>
           </button>
           <span className="app__headline">危險通報</span>
-          <HamburgerMenu 
-            onShowDangerMap={handleMenuShowDangerMap}
+          <HamburgerMenu
             onShowReportList={handleNavigateToReportList}
             onShowSettings={handleNavigateToSettings}
+            onExportEvidence={handleExportEvidence}
           />
         </header>
 
         <main className="app__content" aria-label="危險通報操作">
-          {showDangerMap && (
-            <>
-              <div className="app__map-container">
-                <HomeMap 
-                  ref={homeMapRef}
-                  onDangerZonesData={(data) => {
-                    console.log('[App] 收到危險區域數據:', data)
-                    // 數據已經由 HomeMap 自動繪製在地圖上
-                  }}
-                  onClusterClick={(cluster) => {
-                    console.log('[App] 點擊群集:', cluster)
-                    // 首頁不需要顯示詳細資訊，只記錄日誌
-                  }}
-                />
-              </div>
-
-              {/* 查詢此處危險狀態按鈕（已移除，代碼保留在下方註釋中） */}
-              {/* 
-              <div className="app__query-danger-btn-container">
-                <button
-                  type="button"
-                  className="app__query-danger-btn"
-                  onClick={handleQueryDangerZones}
-                  disabled={queryingDanger || !canQuery}
-                >
-                  {queryingDanger ? '查詢中...' : '查詢此處危險狀態'}
-                </button>
-              </div>
-              */}
-
-              <div className="app__hide-map-btn-container">
-                <button
-                  type="button"
-                  className="app__hide-map-btn"
-                  onClick={handleHideDangerMap}
-                >
-                  隱藏危險地圖
-                </button>
-              </div>
-            </>
-          )}
-
-          {!showDangerMap && (
-            <div className="app__show-map-btn-container">
-              <button
-                type="button"
-                className="app__show-map-btn"
-                onClick={handleShowDangerMap}
-              >
-                快速查看危險地圖
-              </button>
-            </div>
-          )}
-
           <div className="app__buttons">
             <button
               type="button"
@@ -265,6 +336,19 @@ function App() {
                 />
               </svg>
               <span>不安全回報</span>
+            </button>
+            <button
+              type="button"
+              className="app__action-btn"
+              onClick={handleMenuShowDangerMap}
+            >
+              <img
+                src={MapIcon}
+                alt="查看危險地圖"
+                className="app__action-icon"
+                style={{ width: '48px', height: '48px' }}
+              />
+              <span>查看危險地圖</span>
             </button>
             <button
               type="button"
@@ -337,8 +421,8 @@ function App() {
       <div
         className={`danger-page-wrapper ${currentPage === 'danger' ? 'danger-page-wrapper--active' : ''}`}
       >
-        <DangerPage 
-          onBack={handleBack} 
+        <DangerPage
+          onBack={handleBack}
           onNavigateToDangerMap={handleMenuShowDangerMap}
           onNavigateToReportList={handleNavigateToReportList}
           onNavigateToSettings={handleNavigateToSettings}
@@ -348,8 +432,8 @@ function App() {
       <div
         className={`unsafe-report-page-wrapper ${currentPage === 'unsafe-report' ? 'unsafe-report-page-wrapper--active' : ''}`}
       >
-        <UnsafeReportPage 
-          onBack={handleBack} 
+        <UnsafeReportPage
+          onBack={handleBack}
           onNavigateToDangerMap={handleMenuShowDangerMap}
           onNavigateToReportList={handleNavigateToReportList}
           onNavigateToSettings={handleNavigateToSettings}
@@ -359,7 +443,7 @@ function App() {
       <div
         className={`danger-map-page-wrapper ${currentPage === 'danger-map' ? 'danger-map-page-wrapper--active' : ''}`}
       >
-        <DangerMapPage 
+        <DangerMapPage
           onBack={handleBack}
           onNavigateToDangerMap={handleMenuShowDangerMap}
           onNavigateToReportList={handleNavigateToReportList}
@@ -370,8 +454,8 @@ function App() {
       <div
         className={`report-list-page-wrapper ${currentPage === 'report-list' ? 'report-list-page-wrapper--active' : ''}`}
       >
-        <ReportListPage 
-          onBack={handleBack} 
+        <ReportListPage
+          onBack={handleBack}
           onNavigateToDangerMap={handleMenuShowDangerMap}
           onNavigateToSettings={handleNavigateToSettings}
         />
@@ -380,8 +464,8 @@ function App() {
       <div
         className={`settings-page-wrapper ${currentPage === 'settings' ? 'settings-page-wrapper--active' : ''}`}
       >
-        <SettingsPage 
-          onBack={handleBack} 
+        <SettingsPage
+          onBack={handleBack}
           onNavigateToDangerMap={handleMenuShowDangerMap}
           onNavigateToReportList={handleNavigateToReportList}
         />
