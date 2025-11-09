@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 
 // Google Maps API Key
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyAje_mReHSVbVzSNsuO_WZaqM7Lz4ugO70'
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
 
 // 使用 window 對象存儲全局標誌，確保 setOptions 只調用一次
 declare global {

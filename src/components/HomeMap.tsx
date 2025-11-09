@@ -5,7 +5,7 @@ import devilIcon from '../assets/svgs/devil-svgrepo-com.svg'
 import deadpanIcon from '../assets/svgs/deadpan-1-svgrepo-com.svg'
 
 // Google Maps API Key (首頁專用)
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDu0788Su8S96hJ_MDkgfqYt_6Kbpa92wI'
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
 
 // 使用 window 對象存儲首頁地圖的初始化標誌
 declare global {
